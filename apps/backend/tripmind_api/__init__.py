@@ -5,6 +5,9 @@ def create_app():
     app = Flask(__name__)
     CORS(app)
 
+    from .routes.llm import bp as llm_bp
+    app.register_blueprint(llm_bp, url_prefix="/llm")
+
     from .routes.planner import bp as planner_bp
     from .routes.quotes import bp as quotes_bp
     from .routes.cost import bp as cost_bp
@@ -13,5 +16,6 @@ def create_app():
     app.register_blueprint(cost_bp,    url_prefix="/cost")
 
     @app.get("/health")
-    def health(): return {"ok": True}
+    def health(): 
+        return {"ok": True}
     return app
