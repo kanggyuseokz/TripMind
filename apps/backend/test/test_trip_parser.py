@@ -15,3 +15,4 @@ def test_parse_trip_dates():
     assert out["startDate"] == "2025-10-10"
     assert out["endDate"] == "2025-10-13"
     assert out["pax"] == 2
+    
