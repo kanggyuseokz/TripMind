@@ -3,3 +3,5 @@ flask-cors
 pydantic
 requests
 python-dotenv
+Flask-SQLAlchemy>=3.1.1
+openai
