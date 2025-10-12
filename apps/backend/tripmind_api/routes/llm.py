@@ -1,5 +1,5 @@
 from flask import Blueprint, request
-from ..services.llm_client import chat
+from ..services.llm_service import chat
 
 bp = Blueprint("llm", __name__)
 
