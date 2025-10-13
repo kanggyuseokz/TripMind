@@ -1,6 +1,7 @@
 # tripmind_api/routes/rates.py
 from flask import Blueprint, jsonify, request
-from apps.backend.tripmind_api.services.exchange_service import ExchangeService, ExchangeAPIError
+from ..services.exchange_service import ExchangeService, ExchangeAPIError
+
 
 bp = Blueprint("rates", __name__)
 exchange_service = ExchangeService() # 애플리케이션 시작 시 클라이언트 인스턴스 생성

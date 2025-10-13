@@ -25,14 +25,14 @@ def create_app():
 
     # --- Blueprint 등록 ---
     # routes 디렉토리에서 사용할 Blueprint들을 import 합니다.
-    from .routes import trip_route, rates_route, map_route
+    from .routes import trip_route, rates, map_route
 
     # URL Prefix를 사용하여 각 API 그룹을 구분합니다.
     # 1. 메인 여행 계획 API
     app.register_blueprint(trip_route.bp, url_prefix="/api/trip")
     
     # 2. 유틸리티 API (환율, 지도)
-    app.register_blueprint(rates_route.bp, url_prefix="/api/rates")
+    app.register_blueprint(rates.bp, url_prefix="/api/rates")
     app.register_blueprint(map_route.bp, url_prefix="/api/map")
 
 

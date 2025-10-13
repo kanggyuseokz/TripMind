@@ -28,6 +28,7 @@ class Config:
     
     # JWT 시크릿 키를 추가합니다. (.env 파일에서 JWT_SECURITY 또는 JWT_SECRET_KEY 값을 읽어옵니다)
     JWT_SECRET_KEY = os.getenv("JWT_SECURITY") or os.getenv("JWT_SECRET_KEY")
+    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*") # 값이 없으면 모든 출처(*)를 허용
 
     # 디버그 모드는 .env에서 설정하거나 기본값 False를 사용합니다.
     DEBUG = os.getenv("FLASK_DEBUG", "False").lower() in ('true', '1', 't')
