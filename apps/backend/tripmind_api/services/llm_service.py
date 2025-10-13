@@ -2,6 +2,7 @@ from __future__ import annotations
 import json
 import requests
 from ..config import settings
+import os
 
 class LLMServiceError(Exception):
     """LLM 서비스 관련 에러"""
@@ -26,6 +27,11 @@ class LLMService:
             # llm_parser_spec_v2.md 파일은 Flask 앱이 실행되는 위치를 기준으로
             # 정확한 상대 경로 또는 절대 경로를 지정해야 합니다.
             with open('backend/tripmind_api/llm_parser_spec_v2.md', 'r', encoding='utf-8') as f:
+                system_prompt = f.read()
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            spec_path = os.path.join(current_dir, '..', 'llm_parser_spec_v2.md')
+            
+            with open(spec_path, 'r', encoding='utf-8') as f:
                 system_prompt = f.read()
         except FileNotFoundError:
             raise LLMServiceError("LLM parser specification file not found.")
