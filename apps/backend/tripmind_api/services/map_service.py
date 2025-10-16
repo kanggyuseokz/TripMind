@@ -74,8 +74,13 @@ class MapService:
                 return {"lat": float(location["y"]), "lng": float(location["x"])}
             else:
                 raise MapServiceError(f"Kakao search failed for '{query}': No documents found")
-        except (requests.RequestException, IndexError, KeyError) as e:
-            raise MapServiceError(f"Failed to get coordinates from Kakao for '{query}': {e}")
+        except requests.RequestException as e:
+            # HTTP 4xx/5xx 에러 또는 네트워크 문제 발생 시
+            # response.text를 포함하여 더 상세한 에러 메시지를 제공합니다.
+            error_details = e.response.text if e.response else str(e)
+            raise MapServiceError(f"Failed to get coordinates from Kakao for '{query}': {error_details}")
+        except (IndexError, KeyError) as e:
+            raise MapServiceError(f"Failed to parse Kakao API response for '{query}': {e}")
 
     def get_distance_matrix(self, origins: list[dict[str, float]], destinations: list[dict[str, float]], is_domestic: bool) -> list[list[int]]:
         """
