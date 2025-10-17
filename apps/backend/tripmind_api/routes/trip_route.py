@@ -19,7 +19,7 @@ def handle_conversation():
         return jsonify({"error": "messages field is required"}), 400
 
     messages = request_data["messages"]
-    
+
     try:
         # 1. LLM을 통해 현재까지의 대화 내용 전체를 파싱합니다.
         parsed_data = llm_service.parse_conversation(messages)
@@ -40,8 +40,9 @@ def handle_conversation():
                 "missing_fields": missing_fields
             }), 200
         else:
+            # --- 💡 여기를 수정합니다 ---
             # 3-B. 정보가 충분하면, TripService를 호출하여 최종 여행 계획을 생성합니다.
-            # trip_service는 request_data(preferred_style 포함)와 parsed_data를 모두 사용합니다.
+            # 원본 요청 데이터(request_data)와 파싱된 데이터(parsed_data)를 모두 전달합니다.
             final_plan = trip_service.create_personalized_trip(request_data, parsed_data)
             return jsonify({
                 "type": "plan",
@@ -51,6 +52,6 @@ def handle_conversation():
     except LLMServiceError as e:
         return jsonify({"error": f"LLM service failed: {e}"}), 500
     except Exception as e:
-        print(f"An unexpected error occurred: {e}") # 디버깅을 위한 서버 로그
+        print(f"An unexpected error occurred: {e}") # 개발용 에러 로그
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 

@@ -1,7 +1,6 @@
 from datetime import datetime
 
 # TripMind의 모든 전문 서비스를 임포트합니다.
-from .llm_service import LLMService
 from .mcp_service import MCPService
 from .scoring_service import ScoringService
 from .map_service import MapService
@@ -19,7 +18,7 @@ class TripService:
 
     def create_personalized_trip(self, request_data: dict, parsed_data: dict) -> dict:
         """
-        모든 정보가 수집된 후, 실제 여행 계획을 생성하는 메인 메소드입니다.
+        LLM이 파싱한 데이터를 기반으로, 실제 여행 계획을 생성하는 메인 메소드입니다.
         """
         # Step 1: MCP 서비스를 호출하여 모든 외부 데이터를 병렬로 수집합니다.
         user_style = request_data.get('preferred_style', '관광')
@@ -31,12 +30,13 @@ class TripService:
         trip_duration_days = (end_date - start_date).days + 1
 
         # Step 3: Scoring 서비스를 사용하여 총 경비 및 비용 비중을 계산합니다.
+        # 💡 LLM이 파싱한 'destination' 값을 비용 추정에 실제로 사용합니다.
         cost_info = self.scoring_service.calculate_total_cost(
             mcp_data.get('flight_quote'), 
             mcp_data.get('hotel_quote'),
             trip_duration_days, 
-            parsed_data['party_size'], 
-            'moderate', {} # 예산 등급 및 물가 정보 (향후 확장 가능)
+            parsed_data['party_size'],
+            parsed_data['destination'] # <- 파싱된 목적지 사용
         )
         cost_breakdown_chart = self.scoring_service.calculate_cost_breakdown(
             cost_info.get('costs_by_category', {})
@@ -48,6 +48,7 @@ class TripService:
         )
         
         # Step 5: Map Service를 사용하여 동선을 최적화하고 최종 일정을 배치합니다.
+        # 💡 LLM이 파싱한 'is_domestic' 값을 지도 API 선택에 실제로 사용합니다.
         is_domestic = parsed_data.get("is_domestic", False)
         final_schedule = self._arrange_schedule_optimized(
             scored_pois, trip_duration_days, is_domestic
@@ -70,18 +71,15 @@ class TripService:
         if not scored_pois:
             return []
         
-        # POI 좌표 목록을 준비합니다.
         poi_coords = [{"lat": poi.get("lat", 0), "lng": poi.get("lng", 0)} for poi in scored_pois]
         
         try:
-            # 지도 서비스에서 POI 간 이동 시간 매트릭스를 가져옵니다.
             distance_matrix = self.map_service.get_distance_matrix(poi_coords, poi_coords, is_domestic)
         except NotImplementedError:
-             # 국내 다중 경로 미지원 시, 단순 목록 나열로 대체 (Graceful Degradation)
-            distance_matrix = None
-            print("Warning: Distance matrix for domestic travel is not implemented. Falling back to simple list.")
+             distance_matrix = None
+             print("Warning: Distance matrix for domestic travel is not implemented. Falling back to simple list.")
 
-        # TODO: distance_matrix를 활용하여 실제 동선 최적화 로직(TSP 알고리즘 등) 구현 필요
+        # TODO: distance_matrix를 활용한 실제 동선 최적화 로직 구현 필요
         # 현재는 점수 순서대로 하루 4개씩 간단히 배치하는 임시 로직입니다.
         schedule = []
         pois_per_day = 4
