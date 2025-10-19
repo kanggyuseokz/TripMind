@@ -54,7 +54,8 @@ class Config:
     HF_MODEL = os.getenv("HF_MODEL", "openai/gpt-oss-20b:nebius")
     
     # MCP 서버의 기본 URL (services/mcp_service.py에서 사용)
-    MCP_BASE_URL = os.getenv("MCP_BASE_URL", "http://localhost:8000")
+    MCP_PORT = os.getenv("MCP_PORT", "7000")
+    MCP_BASE_URL = os.getenv("MCP_BASE_URL", f"http://localhost:{MCP_PORT}")
 
     # =================================================================
     # 4. 외부 API 설정
