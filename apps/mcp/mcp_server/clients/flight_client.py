@@ -1,5 +1,6 @@
 import httpx
 from datetime import date
+import pprint  # 👈 디버깅을 위해 pprint를 임포트합니다.
 from ..config import settings
 
 class FlightClientError(Exception):
@@ -10,7 +11,6 @@ class FlightClient:
     """RapidAPI의 Agoda API (Worldwide Hotels)를 사용하여 항공권 데이터를 가져오는 클라이언트"""
     
     def __init__(self):
-        # Agoda 호텔 API와 동일한 Host 및 Key 설정을 사용합니다.
         self.base_url = settings.BOOKING_RAPID_BASE
         self.headers = {
             "X-RapidAPI-Key": settings.RAPID_API_KEY,
@@ -20,14 +20,19 @@ class FlightClient:
     async def _get_iata_code(self, client: httpx.AsyncClient, city_name: str) -> str | None:
         """도시 이름을 기반으로 항공에서 사용하는 IATA 공항 코드를 찾습니다."""
         url = f"{self.base_url}/flights/auto-complete"
-        params = {"keyword": city_name, "language": "ko-kr"}
+        params = {"query": city_name, "language": "ko-kr"}
         try:
             response = await client.get(url, headers=self.headers, params=params)
             response.raise_for_status()
             result = response.json()
             
-            # 응답에서 IATA 코드를 찾아 반환합니다.
-            # (API 응답 구조를 보고 'iata' 또는 'id' 등 정확한 필드 이름 확인 필요)
+            # --- 💡 디버깅 코드 추가 ---
+            # Agoda 서버로부터 받은 원본 응답을 터미널에 출력합니다.
+            print("\n--- [DEBUG] Agoda Flights 'auto-complete' API 응답 ---")
+            pprint.pprint(result)
+            print("-------------------------------------------------------")
+            # --------------------------
+            
             if result and isinstance(result, list) and len(result) > 0:
                 return result[0].get("iata")
         except httpx.HTTPStatusError as e:
@@ -62,14 +67,18 @@ class FlightClient:
                 response = await client.get(url, headers=self.headers, params=params)
                 response.raise_for_status()
                 search_result = response.json()
+
+                # --- 💡 디버깅 코드 추가 ---
+                print("\n--- [DEBUG] Agoda Flights 'search-roundtrip' API 응답 ---")
+                pprint.pprint(search_result)
+                print("---------------------------------------------------------")
+                # --------------------------
                 
-                # API 응답 구조에 따라 항공권 정보를 추출합니다.
                 if search_result and search_result.get("results"):
-                    # 가장 저렴하거나 인기 있는 항공권 (첫 번째 결과) 정보를 가공
                     top_flight = search_result["results"][0]
                     price_info = top_flight.get("price", {})
 
-                    return [{ # main.py가 리스트를 기대하므로 리스트 형태로 반환
+                    return [{
                         "id": top_flight.get("id"),
                         "vendor": "Agoda Flights",
                         "route": f"{origin} - {destination}",
@@ -79,7 +88,7 @@ class FlightClient:
                         "deeplink_url": top_flight.get("url")
                     }]
                 else:
-                     return [] # 검색 결과가 없는 경우
+                     return []
 
             except httpx.HTTPStatusError as e:
                 raise FlightClientError(f"Failed to search flights: {e.response.text}")

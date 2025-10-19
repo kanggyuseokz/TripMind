@@ -3,11 +3,11 @@ from pydantic import BaseModel
 import asyncio
 from datetime import date
 
-# 💡 AgodaClient를 포함한 모든 실제/가상 클라이언트를 임포트합니다.
+# 💡 AgodaClient와 FlightClient를 포함한 모든 클라이언트를 임포트합니다.
 from .clients.agoda_client import AgodaClient
 from .clients.flight_client import FlightClient
-from .clients.weather_client import WeatherClient
-from .clients.poi_client import PoiClient
+from .clients.weather_client import WeatherClient # 현재 Mock
+from .clients.poi_client import PoiClient       # 현재 Mock
 
 app = FastAPI(title="TripMind MCP - Multi-Content Provider")
 
@@ -33,9 +33,9 @@ async def gather_all_trip_data(body: TripDataIn):
     """
     # 각 클라이언트 인스턴스 생성
     agoda_client = AgodaClient()
-    flight_client = FlightClient() # 현재 Mock
-    weather_client = WeatherClient() # 현재 Mock
-    poi_client = PoiClient() # 현재 Mock
+    flight_client = FlightClient()
+    weather_client = WeatherClient()
+    poi_client = PoiClient()
 
     # --- 비동기 동시 호출 ---
     # 각 API를 호출하는 작업(Task) 목록을 만듭니다.
