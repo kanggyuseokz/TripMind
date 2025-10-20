@@ -70,20 +70,24 @@ class ScoringService:
     def score_poi_candidates(self, poi_list: list[dict], user_style: str) -> list[dict]:
         """
         사용자의 여행 스타일에 따라 POI 목록의 점수를 매기고 정렬합니다.
-        (예: '맛집' 스타일이면 'food' 카테고리 POI에 높은 가중치)
+        (예: '맛집' 스타일이면 '맛집' 카테고리 POI에 높은 가중치 부여)
         """
+        # 💡 스타일별 가중치를 더 명확하게 정의
         style_weights = {
-            "맛집": {"food": 1.5, "landmark": 1.0, "entertainment": 0.8},
-            "관광": {"landmark": 1.5, "history": 1.3, "food": 0.8},
-            "휴식": {"park": 1.5, "cafe": 1.3, "landmark": 0.7},
-            "default": {"landmark": 1.0, "food": 1.0, "entertainment": 1.0}
+            "맛집": {"맛집": 1.5, "음식점": 1.5, "카페": 1.2, "관광명소": 1.0},
+            "관광": {"관광명소": 1.5, "문화시설": 1.3, "맛집": 0.8, "음식점": 0.8},
+            "휴식": {"카페": 1.5, "공원": 1.3, "관광명소": 0.7},
+            "default": {} # 기본 가중치는 모두 1.0
         }
         weights = style_weights.get(user_style, style_weights["default"])
         
         scored_pois = []
         for poi in poi_list:
-            category = poi.get("category", "default")
+            # API가 반환하는 다양한 카테고리 이름에 대응
+            category = poi.get("category", "기타")
             rating = poi.get("rating", 3.0)
+            
+            # 해당 카테고리에 대한 가중치를 가져오고, 없으면 기본값 1.0 사용
             weight = weights.get(category, 1.0)
             
             # 기본 점수 = 평점 * 가중치
