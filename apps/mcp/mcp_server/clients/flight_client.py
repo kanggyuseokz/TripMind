@@ -1,6 +1,6 @@
 import httpx
 from datetime import date
-import pprint  # 👈 디버깅을 위해 pprint를 임포트합니다.
+import pprint
 from ..config import settings
 
 class FlightClientError(Exception):
@@ -20,21 +20,19 @@ class FlightClient:
     async def _get_iata_code(self, client: httpx.AsyncClient, city_name: str) -> str | None:
         """도시 이름을 기반으로 항공에서 사용하는 IATA 공항 코드를 찾습니다."""
         url = f"{self.base_url}/flights/auto-complete"
-        params = {"query": city_name, "language": "ko-kr"}
+        params = {"query": city_name, "language": "ko-kr"} # 'keyword' -> 'query' 수정
         try:
             response = await client.get(url, headers=self.headers, params=params)
             response.raise_for_status()
             result = response.json()
             
-            # --- 💡 디버깅 코드 추가 ---
-            # Agoda 서버로부터 받은 원본 응답을 터미널에 출력합니다.
-            print("\n--- [DEBUG] Agoda Flights 'auto-complete' API 응답 ---")
-            pprint.pprint(result)
-            print("-------------------------------------------------------")
-            # --------------------------
-            
-            if result and isinstance(result, list) and len(result) > 0:
-                return result[0].get("iata")
+            # --- 💡 여기를 수정합니다 ---
+            # 실제 응답 데이터 구조에 맞춰 IATA 코드를 정확히 추출합니다.
+            if result and result.get("data"):
+                data_list = result["data"]
+                if data_list and isinstance(data_list, list):
+                    # 리스트의 첫 번째 항목에서 도시의 대표 IATA 코드('code')를 반환합니다.
+                    return data_list[0].get("code")
         except httpx.HTTPStatusError as e:
             print(f"Error fetching IATA code for '{city_name}': {e} - Response: {e.response.text}")
             return None
@@ -67,13 +65,12 @@ class FlightClient:
                 response = await client.get(url, headers=self.headers, params=params)
                 response.raise_for_status()
                 search_result = response.json()
-
-                # --- 💡 디버깅 코드 추가 ---
+                
+                # 디버깅을 위해 항공권 검색 결과도 출력해봅니다.
                 print("\n--- [DEBUG] Agoda Flights 'search-roundtrip' API 응답 ---")
                 pprint.pprint(search_result)
                 print("---------------------------------------------------------")
-                # --------------------------
-                
+
                 if search_result and search_result.get("results"):
                     top_flight = search_result["results"][0]
                     price_info = top_flight.get("price", {})

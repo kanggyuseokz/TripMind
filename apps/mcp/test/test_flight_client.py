@@ -25,8 +25,8 @@ async def main():
 
     test_origin = "서울"
     test_destination = "도쿄"
-    test_start_date = date(2025, 12, 15)
-    test_end_date = date(2025, 12, 19)
+    test_start_date = date(2025, 11, 5)
+    test_end_date = date(2025, 11, 9)
     test_pax = 2
 
     print(f"\n🔍 검색 조건:")
