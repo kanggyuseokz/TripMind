@@ -1,63 +1,65 @@
 import asyncio
-from datetime import date
-import pprint
+from datetime import date, timedelta
 import sys
 import os
 
-# 테스트 스크립트가 mcp_server 모듈을 찾을 수 있도록 상위 디렉토리(mcp/)를 Python 경로에 추가합니다.
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# 프로젝트 루트 경로를 sys.path에 추가 (mcp 폴더의 상위 폴더)
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
 
-# 💡 import 대상을 AgodaClient로 변경합니다.
+# 경로 추가 후 모듈 임포트
 from mcp_server.clients.agoda_client import AgodaClient, AgodaClientError
-from mcp_server.config import settings
 
-async def main():
-    """
-    AgodaClient를 직접 실행하여 RapidAPI 연동을 테스트하는 메인 함수입니다.
-    """
-    print("--- RapidAPI (Agoda) 연동 테스트 시작 ---")
+async def run_hotel_test():
+    """Agoda 호텔 API 클라이언트 테스트를 실행합니다."""
+    print("--- RapidAPI (Agoda Hotels) 연동 테스트 시작 ---")
 
-    # .env 파일에서 API 키가 제대로 로드되었는지 확인
-    if not settings.RAPID_API_KEY or not settings.BOOKING_RAPID_HOST:
-        print("🔴 오류: .env 파일에서 RAPID_API_KEY 또는 BOOKING_RAPID_HOST를 찾을 수 없습니다.")
-        return
+    # --- 검색 조건 ---
+    destination = "도쿄" # 검색할 도시 이름
+    start_date = date.today() + timedelta(days=90) # 오늘로부터 90일 후
+    end_date = start_date + timedelta(days=3) # 3박
+    pax = 2 # 성인 2명
+    # ---------------
 
-    # 1. AgodaClient 인스턴스 생성
-    agoda_client = AgodaClient()
+    print("\n🔍 검색 조건:")
+    print(f"  - 목적지: {destination}")
+    print(f"  - 체크인: {start_date}")
+    print(f"  - 체크아웃: {end_date}")
+    print(f"  - 인원: {pax}명")
 
-    # 2. 테스트할 여행 정보 정의
-    test_destination = "도쿄"
-    test_start_date = date(2025, 12, 10)
-    test_end_date = date(2025, 12, 13)
-    test_pax = 2
+    client = AgodaClient()
 
-    print(f"\n🔍 검색 조건:")
-    print(f"  - 목적지: {test_destination}")
-    print(f"  - 체크인: {test_start_date}")
-    print(f"  - 체크아웃: {test_end_date}")
-    print(f"  - 인원: {test_pax}명")
+    print("\n⏳ RapidAPI 서버에 호텔 정보를 요청합니다...")
 
-    # 3. search_hotels 메소드 호출 및 결과 확인
     try:
-        print("\n⏳ RapidAPI 서버에 호텔 정보를 요청합니다...")
-        hotel_result = await agoda_client.search_hotels(
-            destination=test_destination,
-            start_date=test_start_date,
-            end_date=test_end_date,
-            pax=test_pax,
+        hotel_result = await client.search_hotels(
+            destination=destination,
+            start_date=start_date,
+            end_date=end_date,
+            pax=pax
         )
-        
         print("\n--- 테스트 결과 ---")
         if hotel_result:
             print("✅ 성공: Agoda API로부터 호텔 정보를 성공적으로 수신했습니다.")
-            pprint.pprint(hotel_result)
+            print(hotel_result)
         else:
             print("🟡 정보: API 호출은 성공했으나, 조건에 맞는 호텔을 찾지 못했습니다.")
 
     except AgodaClientError as e:
-        print(f"🔴 API 클라이언트 오류: {e}")
+        print("\n--- 테스트 결과 ---")
+        print(f"❌ 오류: Agoda API 호출 중 에러 발생: {e}")
     except Exception as e:
-        print(f"🔴 예측하지 못한 오류: {e}")
+        print("\n--- 테스트 결과 ---")
+        print(f"❌ 오류: 예상치 못한 에러 발생: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # Python 3.7+ 에서는 asyncio.run() 사용 권장
+    try:
+        asyncio.run(run_hotel_test())
+    except RuntimeError as e:
+        # Jupyter Notebook 등 이미 이벤트 루프가 실행 중인 환경 처리
+        if "cannot run nested event loops" in str(e):
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(run_hotel_test())
+        else:
+            raise
