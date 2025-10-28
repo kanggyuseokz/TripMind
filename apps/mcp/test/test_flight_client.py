@@ -17,7 +17,7 @@ async def main():
     """
     print("--- RapidAPI (Agoda Flights) 연동 테스트 시작 ---")
 
-    if not settings.RAPID_API_KEY or not settings.BOOKING_RAPID_HOST:
+    if not settings.RAPID_API_KEY or not settings.RAPID_HOST:
         print("🔴 오류: .env 파일에서 API 키 또는 호스트 정보를 찾을 수 없습니다.")
         return
 

@@ -16,8 +16,8 @@ class Settings:
     
     # Booking API (RapidAPI)
     RAPID_API_KEY: str = os.getenv("RAPID_API_KEY")
-    BOOKING_RAPID_HOST: str = os.getenv("BOOKING_RAPID_HOST")
-    BOOKING_RAPID_BASE: str = os.getenv("BOOKING_RAPID_BASE")
+    RAPID_HOST: str = os.getenv("RAPID_HOST")
+    RAPID_BASE: str = os.getenv("RAPID_BASE")
 
 # 다른 파일에서 from .config import settings 로 참조할 수 있도록 인스턴스를 생성합니다.
 settings = Settings()
