@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+import asyncio
 from ..services.trip_service import TripService
 from ..services.llm_service import LLMService, LLMServiceError
 
@@ -43,7 +44,7 @@ def handle_conversation():
             # --- 💡 여기를 수정합니다 ---
             # 3-B. 정보가 충분하면, TripService를 호출하여 최종 여행 계획을 생성합니다.
             # 원본 요청 데이터(request_data)와 파싱된 데이터(parsed_data)를 모두 전달합니다.
-            final_plan = trip_service.create_personalized_trip(request_data, parsed_data)
+            final_plan = asyncio.run(trip_service.create_personalized_trip(request_data, parsed_data))
             return jsonify({
                 "type": "plan",
                 "content": final_plan
