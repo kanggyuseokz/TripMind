@@ -1,6 +1,6 @@
 # backend/tripmind_api/services/trip_service.py
 from datetime import datetime
-import httpx
+import httpx 
 
 # TripMind의 모든 전문 서비스를 임포트합니다.
 from .mcp_service import MCPService
@@ -18,16 +18,17 @@ class TripService:
         self.scoring_service = ScoringService()
         self.map_service = MapService()
 
-    # 💡 1. 'def'를 'async def'로 변경
-    async def create_personalized_trip(self, request_data: dict, parsed_data: dict) -> dict:
+    # 💡 1. 'async def'를 다시 'def' (동기)로 변경
+    def create_personalized_trip(self, request_data: dict, parsed_data: dict) -> dict:
         """
         LLM이 파싱한 데이터를 기반으로, 실제 여행 계획을 생성하는 메인 메소드입니다.
         """
         try:
             # Step 1: MCP 서비스를 호출하여 모든 외부 데이터를 병렬로 수집합니다.
             user_style = request_data.get('preferred_style', '관광')
-            # 💡 2. 'await' 추가
-            mcp_data = await self.mcp_service.fetch_all_data(parsed_data, user_style)
+            
+            # 💡 2. 'await' 제거 (mcp_service.fetch_all_data도 동기 'def'여야 함)
+            mcp_data = self.mcp_service.fetch_all_data(parsed_data, user_style)
             
             if not mcp_data:
                 # MCP 서비스가 None을 반환한 경우 (예: MCP 서버 통신 실패)
@@ -39,13 +40,13 @@ class TripService:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
             trip_duration_days = (end_date - start_date).days + 1
-            trip_duration_nights = (end_date - start_date).days # 💡 박 수 계산
+            trip_duration_nights = (end_date - start_date).days # 박 수 계산
 
             # Step 3: Scoring 서비스를 사용하여 총 경비 및 비용 비중을 계산합니다.
             cost_info = self.scoring_service.calculate_total_cost(
                 mcp_data.get('flight_quote'), 
                 mcp_data.get('hotel_quote'),
-                trip_duration_nights,  # 💡 '일수' 대신 '박 수'를 전달 (비용 계산에 더 정확)
+                trip_duration_nights,  # '일수' 대신 '박 수'를 전달 (비용 계산에 더 정확)
                 parsed_data.get('party_size', 1),
                 parsed_data['destination']
             )
@@ -91,7 +92,7 @@ class TripService:
 
     def _arrange_schedule_optimized(self, scored_pois: list[dict], trip_duration_days: int, is_domestic: bool) -> list[dict]:
         """점수가 높은 POI들을 기반으로 지리적으로 최적화된 일정을 생성합니다."""
-        # (기존 로직 유지)
+        # (기존 동기 로직 유지)
         if not scored_pois:
             return []
         

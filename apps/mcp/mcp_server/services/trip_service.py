@@ -1,3 +1,5 @@
+# mcp/mcp_server/services/trip_service.py
+
 import asyncio
 from datetime import date
 from ..schemas.plan import PlanRequest

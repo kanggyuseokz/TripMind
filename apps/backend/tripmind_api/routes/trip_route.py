@@ -1,5 +1,7 @@
+# backend/tripmind_api/routes/trip_route.py
+
 from flask import Blueprint, request, jsonify
-import asyncio
+# import asyncio # 💡 1. asyncio 임포트 제거 (동기 방식 사용)
 from ..services.trip_service import TripService
 from ..services.llm_service import LLMService, LLMServiceError
 
@@ -11,7 +13,7 @@ trip_service = TripService()
 @bp.post("/plan")
 def handle_conversation():
     """
-    사용자와의 전체 대화 기록을 받아 처리합니다.
+    사용자와의 전체 대화 기록을 받아 처리합니다. (동기 방식)
     - 정보가 충분하면 여행 계획을 생성합니다.
     - 정보가 부족하면 사용자에게 다시 질문합니다.
     """
@@ -22,7 +24,8 @@ def handle_conversation():
     messages = request_data["messages"]
 
     try:
-        # 1. LLM을 통해 현재까지의 대화 내용 전체를 파싱합니다.
+        # 1. LLM을 통해 현재까지의 대화 내용 전체를 파싱합니다. (동기 호출)
+        # 💡 2. asyncio.run() 제거
         parsed_data = llm_service.parse_conversation(messages)
         
         # 2. 파싱된 결과에 핵심 정보가 모두 포함되어 있는지 검증합니다.
@@ -33,7 +36,8 @@ def handle_conversation():
         ]
         
         if missing_fields:
-            # 3-A. 정보가 부족하면, 사용자에게 되물을 질문을 LLM에게 생성하도록 요청합니다.
+            # 3-A. 정보가 부족하면, 사용자에게 되물을 질문을 LLM에게 생성하도록 요청합니다. (동기 호출)
+            # 💡 3. asyncio.run() 제거
             question = llm_service.generate_clarifying_question(messages, missing_fields)
             return jsonify({
                 "type": "question",
@@ -41,10 +45,9 @@ def handle_conversation():
                 "missing_fields": missing_fields
             }), 200
         else:
-            # --- 💡 여기를 수정합니다 ---
-            # 3-B. 정보가 충분하면, TripService를 호출하여 최종 여행 계획을 생성합니다.
-            # 원본 요청 데이터(request_data)와 파싱된 데이터(parsed_data)를 모두 전달합니다.
-            final_plan = asyncio.run(trip_service.create_personalized_trip(request_data, parsed_data))
+            # 3-B. 정보가 충분하면, TripService를 호출하여 최종 여행 계획을 생성합니다. (동기 호출)
+            # 💡 4. asyncio.run() 제거
+            final_plan = trip_service.create_personalized_trip(request_data, parsed_data)
             return jsonify({
                 "type": "plan",
                 "content": final_plan

@@ -1,74 +1,138 @@
-# backend/tripmind_api/services/mcp_service.py
-import httpx
-import uuid
-from typing import Dict, Any
-from ..config import settings # 👈 메인 백엔드의 설정 파일
+# mcp/mcp_server/services/mcp_service.py
+import asyncio
+from datetime import date, datetime
+
+# 💡 모든 비동기(async def) 클라이언트를 임포트합니다.
+from ..clients.agoda_client import AgodaClient, AgodaClientError
+from ..clients.flight_client import FlightClient, FlightClientError
+from ..clients.poi_client import PoiClient, PoiClientError
+from ..clients.weather_client import WeatherClient, WeatherClientError
 
 class MCPService:
     """
-    메인 백엔드 서버에서 MCP 마이크로서비스로 API 요청을 보내는 클라이언트 서비스.
+    MCP 서버의 핵심 로직.
+    모든 외부 API(Agoda, Flight, POI, Weather)를 비동기 병렬로 호출하고 데이터를 수집/반환합니다.
     """
     def __init__(self):
-        # MCP 서버의 기본 URL을 설정 파일에서 가져옵니다.
-        # (예: .env 파일에 MCP_SERVER_URL=http://localhost:8001 추가 필요)
-        self.base_url = settings.MCP_SERVER_URL 
-        # 비동기 HTTP 클라이언트를 생성합니다.
-        self.client = httpx.AsyncClient(base_url=self.base_url, timeout=120.0)
+        # 각 API 클라이언트의 인스턴스를 생성합니다. (모두 비동기)
+        self.agoda_client = AgodaClient()
+        self.flight_client = FlightClient()
+        self.poi_client = PoiClient()
+        self.weather_client = WeatherClient()
 
-    async def fetch_all_data(self, parsed_data: dict, user_style: str) -> Dict[str, Any]:
+    async def _safe_api_call(self, coro, default_value=None):
         """
-        MCP 서버의 /plan/generate 엔드포인트를 호출하여 모든 외부 데이터를 가져옵니다.
+        API 호출을 안전하게 실행하고, 실패 시 기본값(None 또는 {})을 반환하는 래퍼 함수
         """
-        # MCP 서버의 PlanRequest 스키마에 맞게 요청 바디를 구성합니다.
-        request_body = {
-            "request_id": str(uuid.uuid4()), # 고유한 요청 ID 생성
-            "destination": parsed_data.get("destination"),
-            "start_date": parsed_data.get("start_date"),
-            "end_date": parsed_data.get("end_date"),
-            "origin": parsed_data.get("origin"), # LLM 파싱 결과에 'origin'이 포함되어야 함
-            "party_size": parsed_data.get("party_size"),
-            "preferred_style": user_style
-        }
-
         try:
-            print(f"[MCPService] MCP 서버로 데이터 요청 시작: {request_body.get('destination')}")
-            
-            response = await self.client.post("/plan/generate", json=request_body)
-            
-            # MCP 서버가 4xx 또는 5xx 오류를 반환하면 예외 발생
-            response.raise_for_status() 
-            
-            mcp_data = response.json()
-            print(f"[MCPService] MCP 서버로부터 데이터 수신 성공.")
-            
-            # (예: {'poi_list': [...], 'weather_quote': {...}, 'flight_quote': {...}, 'hotel_quote': {...}, ...})
-            return mcp_data
-
-        except httpx.HTTPStatusError as e:
-            # MCP 서버가 오류를 반환한 경우
-            print(f"[MCPService] MCP 서버 오류: {e.response.status_code} - {e.response.text}")
-            # 메인 TripService에 빈 데이터를 반환하여 부분적 처리를 시도하게 함
-            return self._get_empty_mcp_data()
-        except httpx.RequestError as e:
-            # MCP 서버에 연결할 수 없는 경우 (네트워크 오류 등)
-            print(f"[MCPService] MCP 서버 연결 오류: {e}")
-            return self._get_empty_mcp_data()
+            return await coro
         except Exception as e:
-            print(f"[MCPService] 알 수 없는 오류 발생: {e}")
-            return self._get_empty_mcp_data()
+            # API 호출 실패 시 에러 로그 출력 (나중에 logging 모듈로 대체)
+            print(f"[MCPService] API 호출 실패: {e}")
+            # flight_quote, hotel_quote 등은 빈 딕셔너리 반환, 나머지는 None 반환
+            return default_value if default_value is not None else {}
 
-    def _get_empty_mcp_data(self) -> Dict[str, Any]:
-        """MCP 호출 실패 시 반환할 기본 빈 데이터 구조"""
-        return {
-            "poi_list": [],
-            "weather_quote": {},
-            "flight_quote": {},
-            "hotel_quote": {},
-            "trip_duration_nights": 0,
-            "request_id": None
-        }
+    async def generate_trip_data(self, request_data: dict) -> dict:
+        """
+        메인 백엔드로부터 받은 데이터를 기반으로 모든 외부 API를 병렬 호출합니다.
+        """
+        try:
+            # 1. 요청 데이터 파싱
+            llm_data = request_data.get("llm_parsed_data", {})
+            style = request_data.get("user_preferred_style", "관광")
 
-# 참고: 이 서비스는 비동기(async)로 작성되었으므로,
-# 이 서비스를 호출하는 backend/trip_service.py의 create_personalized_trip 메소드도
-# async def create_personalized_trip(...)으로 선언하고,
-# mcp_data = await self.mcp_service.fetch_all_data(...) 로 호출
+            destination = llm_data.get("destination")
+            origin = llm_data.get("origin")
+            start_date_str = llm_data.get("start_date")
+            end_date_str = llm_data.get("end_date")
+            pax = llm_data.get("party_size", 1)
+
+            # 2. 날짜 객체 변환 (API 호출에 필요)
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            trip_duration_nights = (end_date - start_date).days
+
+            # 3. 비동기 태스크 리스트 생성
+            tasks = []
+
+            # 항공권 검색 태스크
+            tasks.append(
+                self._safe_api_call(
+                    self.flight_client.search_flights(
+                        origin=origin,
+                        destination=destination,
+                        start_date=start_date,
+                        end_date=end_date,
+                        pax=pax
+                    ),
+                    default_value=[] # 실패 시 빈 리스트
+                )
+            )
+
+            # 호텔 검색 태스크
+            tasks.append(
+                self._safe_api_call(
+                    self.agoda_client.search_hotels(
+                        destination=destination,
+                        start_date=start_date,
+                        end_date=end_date,
+                        pax=pax,
+                        nights=trip_duration_nights
+                    ),
+                    default_value={} # 실패 시 빈 딕셔너리
+                )
+            )
+
+            # POI 검색 태스크
+            tasks.append(
+                self._safe_api_call(
+                    self.poi_client.search_pois(
+                        destination=destination,
+                        category=style
+                    ),
+                    default_value=[] # 실패 시 빈 리스트
+                )
+            )
+
+            # 날씨 검색 태스크
+            tasks.append(
+                self._safe_api_call(
+                    self.weather_client.get_weather_forecast(
+                        destination=destination,
+                        start_date=start_date,
+                        end_date=end_date
+                    ),
+                    default_value=None # 실패 시 None
+                )
+            )
+
+            # 4. 모든 API를 병렬로 동시 실행
+            print(f"[MCPService] MCP 데이터 수집 시작... (대상: {destination})")
+            results = await asyncio.gather(*tasks)
+            print("[MCPService] MCP 데이터 수집 완료.")
+
+            # 5. 결과 매핑
+            flight_quote_list = results[0]
+            hotel_quote = results[1]
+            poi_list = results[2]
+            weather_info = results[3]
+            
+            # 항공권은 리스트 중 첫 번째 항목(가장 저렴한)을 선택
+            flight_quote = flight_quote_list[0] if flight_quote_list else {}
+
+            return {
+                "flight_quote": flight_quote,
+                "hotel_quote": hotel_quote,
+                "poi_list": poi_list,
+                "weather_info": weather_info,
+                "trip_duration_nights": trip_duration_nights
+            }
+
+        except Exception as e:
+            # 날짜 파싱 실패 등 로직 오류
+            print(f"[MCPService] 데이터 생성 중 로직 오류: {e}")
+            return {"error": str(e)}
+
+# 서비스 인스턴스 생성 (라우터에서 주입받아 사용)
+mcp_service_instance = MCPService()
+
