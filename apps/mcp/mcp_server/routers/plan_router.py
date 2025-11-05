@@ -1,3 +1,5 @@
+# mcp/mcp_server/routers/plan_router.py
+
 from fastapi import APIRouter, Depends, HTTPException
 from ..schemas.plan import PlanRequest
 from ..services.trip_service import TripService, get_trip_service
