@@ -1,66 +1,40 @@
+# mcp/mcp_server/main.py
 from fastapi import FastAPI
-from pydantic import BaseModel
-import asyncio
-from datetime import date
+from contextlib import asynccontextmanager
 
-# 💡 AgodaClient와 FlightClient를 포함한 모든 클라이언트를 임포트합니다.
+# 💡 1. 우리가 작업한 plan_router를 임포트합니다.
+from .routers import plan_router
+# 💡 2. (선택사항) 나중에 클라이언트 인스턴스 관리를 위해 추가
 from .clients.agoda_client import AgodaClient
 from .clients.flight_client import FlightClient
-from .clients.weather_client import WeatherClient # 현재 Mock
-from .clients.poi_client import PoiClient       # 현재 Mock
+# ... (다른 클라이언트들)
 
-app = FastAPI(title="TripMind MCP - Multi-Content Provider")
+# (참고) FastAPI의 최신 권장 방식은 lifespan을 사용하는 것입니다.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # -----------------------------------------------------------------
+    # (선택사항) 서버 시작 시 클라이언트 인스턴스를 미리 생성합니다.
+    # 이렇게 하면 요청이 올 때마다 클라이언트를 새로 만들지 않아 효율적입니다.
+    # app.state.agoda_client = AgodaClient()
+    # app.state.flight_client = FlightClient()
+    # (mcp_service.py에서 생성하는 대신, 여기서 생성한 것을 주입(DI)할 수 있습니다)
+    # -----------------------------------------------------------------
+    
+    print("MCP 서버가 시작되었습니다.")
+    yield
+    # (서버 종료 시 리소스 정리 로직)
+    print("MCP 서버가 종료됩니다.")
 
-class TripDataIn(BaseModel):
-    """백엔드로부터 여행 계획에 필요한 모든 정보를 받는 모델"""
-    origin: str
-    destination: str
-    is_domestic: bool
-    start_date: date
-    end_date: date
-    party_size: int
-    preferred_style: str = "관광"
+# 💡 3. FastAPI 앱 생성 (lifespan은 선택사항)
+app = FastAPI(
+    title="TripMind MCP - Multi-Content Provider",
+    lifespan=lifespan 
+)
 
 @app.get("/health")
 def health():
-    return {"ok": True}
+    """메인 백엔드가 MCP 서버가 살아있는지 확인하는 엔드포인트"""
+    return {"status": "ok", "message": "MCP server is running."}
 
-@app.post("/gather-all")
-async def gather_all_trip_data(body: TripDataIn):
-    """
-    여행에 필요한 항공, 숙소, 날씨, POI 등 모든 정보를
-    비동기적으로 동시에 수집하여 반환합니다.
-    """
-    # 각 클라이언트 인스턴스 생성
-    agoda_client = AgodaClient()
-    flight_client = FlightClient()
-    weather_client = WeatherClient()
-    poi_client = PoiClient()
-
-    # --- 비동기 동시 호출 ---
-    # 각 API를 호출하는 작업(Task) 목록을 만듭니다.
-    tasks = [
-        agoda_client.search_hotels(body.destination, body.start_date, body.end_date, body.party_size),
-        flight_client.search_flights(body.origin, body.destination, body.start_date, body.end_date, body.party_size),
-        weather_client.get_weather_forecast(body.destination, body.start_date, body.end_date),
-        poi_client.search_pois(body.destination, body.is_domestic, body.preferred_style)
-    ]
-    
-    # asyncio.gather를 사용하여 모든 작업을 동시에 실행하고 결과를 기다립니다.
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    
-    # --- 결과 취합 ---
-    # 각 작업의 결과를 안전하게 분리합니다. (실패한 경우 None)
-    hotel_result = results[0] if not isinstance(results[0], Exception) else None
-    flight_result = results[1] if not isinstance(results[1], Exception) else None
-    weather_result = results[2] if not isinstance(results[2], Exception) else None
-    poi_result = results[3] if not isinstance(results[3], Exception) else None
-
-    # 백엔드가 사용하기 좋은 형태로 최종 응답을 구성합니다.
-    return {
-        "hotel_quote": hotel_result,
-        "flight_quote": flight_result[0] if flight_result else None, # 항공권은 리스트의 첫 항목을 반환
-        "weather_info": weather_result,
-        "poi_list": poi_result
-    }
-
+# 💡 4. 가장 중요한 부분: plan_router.py에 정의된 모든 엔드포인트(/plan/generate)를 앱에 포함시킵니다.
+app.include_router(plan_router.router)
