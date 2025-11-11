@@ -1,3 +1,4 @@
+# backend/tripmind_api/services/llm_service.py
 from __future__ import annotations
 import json
 import os
@@ -22,22 +23,25 @@ class LLMService:
         """지정된 spec 파일에서 시스템 프롬프트를 로드합니다."""
         try:
             current_dir = os.path.dirname(os.path.abspath(__file__))
+            # 💡 '..'을 사용하여 'services' 폴더 밖으로 나간 후 spec 파일 경로를 찾습니다.
             spec_path = os.path.join(current_dir, '..', spec_file_name)
             with open(spec_path, 'r', encoding='utf-8') as f:
                 return f.read()
         except FileNotFoundError:
-            raise LLMServiceError(f"LLM spec file '{spec_file_name}' not found.")
+            raise LLMServiceError(f"LLM spec file '{spec_file_name}' not found at {spec_path}")
 
     def parse_conversation(self, messages: list[dict]) -> dict:
-        """전체 대화 기록을 기반으로 정보를 파싱합니다."""
+        """
+        [사용 안 함 - '하이브리드' 방식으로 대체됨]
+        전체 대화 기록을 기반으로 정보를 파싱합니다.
+        """
+        # (이 함수는 'trip_route.py'의 하이브리드 방식에서는 더 이상 호출되지 않습니다)
         system_prompt = self._get_system_prompt('llm_parser_spec_v2.md')
         
-        # 시스템 프롬프트를 대화의 가장 앞에 추가
         full_conversation = [{"role": "system", "content": system_prompt}] + messages
         
         llm_response = self._call_llm(full_conversation, response_format={"type": "json_object"})
         
-        # LLM 응답에서 JSON 콘텐츠를 추출하고 파싱합니다.
         try:
             content = llm_response['choices'][0]['message']['content']
             return json.loads(content)
@@ -45,19 +49,85 @@ class LLMService:
             raise LLMServiceError(f"Failed to parse LLM's JSON response: {e}")
 
     def generate_clarifying_question(self, messages: list[dict], missing_fields: list[str]) -> str:
-        """누락된 정보를 바탕으로 사용자에게 되물을 질문을 생성합니다."""
+        """
+        [사용 안 함 - '하이브리드' 방식으로 대체됨]
+        누락된 정보를 바탕으로 사용자에게 되물을 질문을 생성합니다.
+        """
+        # (이 함수는 'trip_route.py'의 하이브리드 방식에서는 더 이상 호출되지 않습니다)
         fields_str = ", ".join(missing_fields)
-        # LLM에게 역할을 명확히 지시하는 프롬프트
         question_prompt = f"여행 계획에 필요한 다음 정보({fields_str})를 얻기 위해, 친절한 여행 도우미가 되어 사용자에게 자연스러운 질문을 한 문장으로 해주세요. 인사나 부연 설명은 생략합니다."
         
-        # 대화 기록에 AI의 역할을 지시하는 내용을 추가
         full_conversation = messages + [{"role": "user", "content": question_prompt}]
         
         response_json = self._call_llm(full_conversation)
         return response_json['choices'][0]['message']['content']
 
+    # --- 💡 1. '하이브리드' 방식을 위한 신규 함수 (흥미 추출) ---
+    def extract_interests(self, style_text: str) -> list[str]:
+        """
+        사용자가 입력한 '여행 스타일 텍스트'를 기반으로 흥미 키워드 리스트를 추론합니다.
+        """
+        system_prompt = self._get_system_prompt('llm_interests_spec.md')
+        
+        # 'parse_conversation'과 달리, 전체 대화가 아닌 'style_text'만 사용합니다.
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": style_text}
+        ]
+        
+        # JSON 형식으로 응답 요청
+        llm_response = self._call_llm(messages, response_format={"type": "json_object"})
+        
+        try:
+            content = llm_response['choices'][0]['message']['content']
+            # LLM이 JSON 문자열(예: '["휴양", "맛집"]')을 반환하면, 이를 파싱하여 리스트로 반환
+            return json.loads(content) 
+        except (json.JSONDecodeError, KeyError, IndexError, TypeError) as e:
+            print(f"LLMService Error (extract_interests): {e}. Falling back to default.")
+            return ["관광"] # 실패 시 기본값 반환
+
+    # --- 💡 2. '하이브리드' 방식을 위한 신규 함수 (국내/해외 추론) ---
+    def check_domestic(self, origin: str, destination: str) -> bool:
+        """
+        출발지와 도착지를 기반으로 국내/해외 여부를 JSON으로 추론합니다.
+        """
+        system_prompt = self._get_system_prompt('llm_domestic_spec.md')
+        
+        user_prompt = f"({origin}, {destination})"
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        
+        # JSON 형식으로 응답 요청
+        llm_response = self._call_llm(messages, response_format={"type": "json_object"})
+        
+        try:
+            content = llm_response['choices'][0]['message']['content']
+            # LLM이 JSON 문자열(예: '{"is_domestic": false}')을 반환하면, 파싱함
+            result_json = json.loads(content)
+            return result_json.get("is_domestic", False) # is_domestic 값을 bool로 반환
+        except (json.JSONDecodeError, KeyError, IndexError, TypeError) as e:
+            print(f"LLMService Error (check_domestic): {e}. Falling back to default (False).")
+            # 💡 추론 실패 시 '해외'로 간주 (안전한 기본값)
+            return False 
+
+    # --- 💡 3. (신규) 일반 채팅 함수 (llm.py 라우터용) ---
+    def chat(self, messages: list[dict]) -> str:
+        """
+        /llm/complete 엔드포인트를 위한 범용 chat 함수입니다. (동기)
+        """
+        # 이 함수는 JSON 모드가 아닌 일반 텍스트 응답을 가정합니다.
+        response_json = self._call_llm(messages)
+        try:
+            return response_json['choices'][0]['message']['content']
+        except (KeyError, IndexError) as e:
+            raise LLMServiceError(f"Failed to parse LLM's chat response: {e}")
+
+    # --- 내부 LLM 호출 함수 (수정 없음) ---
     def _call_llm(self, messages: list[dict], response_format: dict | None = None) -> dict:
-        """LLM API를 호출하는 내부 메소드"""
+        """LLM API를 호출하는 내부 메소드 (동기)"""
         headers = {"Authorization": f"Bearer {self.hf_token}", "Content-Type": "application/json"}
         payload = {"model": self.model, "messages": messages}
         if response_format:
@@ -70,4 +140,3 @@ class LLMService:
         except requests.RequestException as e:
             error_details = e.response.text if e.response else str(e)
             raise LLMServiceError(f"Failed to call LLM API: {error_details}")
-
