@@ -69,7 +69,8 @@ class FlightClient:
                 "adults": str(pax),
                 "currency": "KRW",
                 "countryCode": "KR", # country_code -> countryCode (API 문서 재확인 필요)
-                "language": "ko-kr"
+                "language": "ko-kr",
+                "sort": "Best"
             }
 
             try:
