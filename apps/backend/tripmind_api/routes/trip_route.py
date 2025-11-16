@@ -1,8 +1,13 @@
 # backend/tripmind_api/routes/trip_route.py
 from flask import Blueprint, request, jsonify
 from ..services.trip_service import TripService
-from ..services.llm_service import LLMService, LLMServiceError # 💡 LLMService 사용
-import httpx # 💡 trip_service의 예외 처리를 위해 임포트
+from ..services.llm_service import LLMService, LLMServiceError
+import httpx
+from datetime import datetime
+# 💡 1. extensions.py에서 'db' 세션을 임포트합니다.
+from ..extensions import db
+# 💡 2. models.py에서 'Trip'과 'User' 모델을 임포트합니다.
+from ..models import Trip, User
 
 bp = Blueprint("trip", __name__)
 
@@ -61,6 +66,38 @@ def handle_plan_request(): # 👈 함수 이름 변경 (대화가 아니므로)
         # --- 3. TripService 호출 (동기) ---
         # request_data (원본 요청)와 parsed_data (조립된 데이터)를 모두 전달.
         final_plan = trip_service.create_personalized_trip(request_data, parsed_data)
+
+                # --- 💡 4. (신규) DB에 여행 계획 저장 ---
+        try:
+            # (임시: 실제로는 @jwt_required() 등으로 로그인된 user_id를 가져와야 함)
+            current_user_id = 1 
+            
+            # 4-1. models.py의 Trip 클래스로 새 여행 객체 생성
+            new_trip = Trip(
+                user_id = current_user_id,
+                origin = parsed_data.get("origin"),
+                destination = parsed_data.get("destination"),
+                start_date = datetime.fromisoformat(parsed_data.get("start_date")),
+                end_date = datetime.fromisoformat(parsed_data.get("end_date")),
+                party_size = parsed_data.get("party_size", 1),
+                preferred_style_text = request_data.get("preferred_style_text"),
+                trip_summary = final_plan.get("trip_summary"),
+                total_cost = final_plan.get("total_cost"),
+                
+                # 4-2. JSON 데이터 저장 (SQLAlchemy가 자동 변환)
+                schedule_json = final_plan.get("schedule", []),
+                cost_chart_json = final_plan.get("cost_breakdown_chart", []),
+                raw_data_json = final_plan.get("raw_data", {})
+            )
+
+            # 4-3. 세션에 추가하고 DB에 커밋 (flask_sqlalchemy는 'db.session' 사용)
+            db.session.add(new_trip)
+            db.session.commit()
+            
+        except Exception as db_error:
+            db.session.rollback() # 👈 오류 발생 시 DB 롤백
+            print(f"DB 저장 실패: {db_error}")
+            # (DB 오류가 나더라도 사용자에게는 플랜을 반환)
         
         return jsonify({
             "type": "plan",

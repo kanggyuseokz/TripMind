@@ -4,7 +4,6 @@ import logging
 from dotenv import load_dotenv, find_dotenv
 
 # 1. 프로젝트 루트의 .env 파일을 찾아 가장 먼저 로드합니다.
-# 이렇게 하면 create_app이 호출되기 전에 모든 환경 변수가 준비됩니다.
 load_dotenv(find_dotenv())
 
 # 2. tripmind_api 패키지에서 애플리케이션 팩토리 함수를 가져옵니다.
@@ -18,7 +17,7 @@ app = create_app()
 if __name__ == "__main__":
     # .env 또는 환경 변수에서 호스트, 포트, 디버그 설정을 읽어옵니다.
     host = os.getenv("HOST", "127.0.0.1")
-    port = int(os.getenv("BACKEND_PORT", "5000"))
+    port = int(os.getenv("BACKEND_PORT", "8080"))
     debug = os.getenv("FLASK_DEBUG", "False").lower() in ('true', '1', 't')
 
     # Flask에 내장된 개발 서버를 실행합니다.
