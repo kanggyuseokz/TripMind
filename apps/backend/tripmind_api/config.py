@@ -44,9 +44,7 @@ class Config:
         f"mysql+pymysql://{_DB_USER}:{_DB_PWD}@{_DB_HOST}:{_DB_PORT}/{_DB_NAME}?charset=utf8mb4"
     )
 
-    DB_URL = (
-        f"mysql+pymysql://{_DB_USER}:{_DB_PWD}@{_DB_HOST}:{_DB_PORT}/{_DB_NAME}?charset=utf8mb4"
-    )
+    DB_URL = os.getenv("DB_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False # 리소스를 절약하기 위해 권장되는 설정
 
     # =================================================================

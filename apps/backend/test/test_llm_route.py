@@ -11,8 +11,8 @@ def test_llm_complete_route(monkeypatch):
         return "ECHO"
     monkeypatch.setenv("OPENAI_API_KEY", "")  # 키 없어도 에러 안 나게
     # chat 함수를 패치하려면 import 경로에 맞게 모듈 교체
-    import tripmind_api.routes.llm as llm
-    llm.chat = fake_chat
+    import apps.backend.tripmind_api.routes.llm_route as llm_route
+    llm_route.chat = fake_chat
 
     app = create_app()
     client = app.test_client()
