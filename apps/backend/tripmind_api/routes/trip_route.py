@@ -4,10 +4,9 @@ from ..services.trip_service import TripService
 from ..services.llm_service import LLMService, LLMServiceError
 import httpx
 from datetime import datetime
-# 💡 extensions.py에서 'db' 세션을 임포트합니다.
 from ..extensions import db
-# 💡 models.py에서 'Trip'과 'User' 모델을 임포트합니다.
 from ..models import Trip, User
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 bp = Blueprint("trip", __name__)
 
@@ -76,19 +75,20 @@ def handle_plan_request():
 
 # 👇 [NEW] 여행 계획 저장 API 추가
 @bp.post("/save")
+@jwt_required() # 💡 이 API는 토큰이 있어야 호출 가능
 def save_trip():
     """
     프론트엔드에서 확정된 여행 계획을 받아 DB에 저장합니다.
     """
+    # 💡 토큰에서 현재 로그인한 사용자의 ID를 자동으로 추출
+    current_user_id = get_jwt_identity()
+    
     data = request.get_json()
     if not data:
         return jsonify({"error": "No data provided"}), 400
     
-    # (로그인 기능 연동 전이므로 임시 ID 1 사용)
-    user_id = data.get('user_id', 1) 
-
     try:
-        # 날짜 문자열 처리 (YYYY-MM-DD 형식이 아닐 경우 대비)
+        # 날짜 문자열 처리
         start_date_str = data.get('startDate')
         end_date_str = data.get('endDate')
         
@@ -99,7 +99,7 @@ def save_trip():
             try:
                 start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
             except ValueError:
-                pass # 날짜 형식이 맞지 않으면 None으로 저장
+                pass
                 
         if end_date_str:
             try:
@@ -109,7 +109,7 @@ def save_trip():
 
         # 1. DB 모델 객체 생성
         new_trip = Trip(
-            user_id=user_id,
+            user_id=current_user_id, # 💡 토큰에서 가져온 ID 사용 (보안 강화)
             title=data.get('trip_summary', '나만의 여행'), 
             destination=data.get('destination', ''),
             start_date=start_date,
