@@ -10,7 +10,7 @@ class AuthService:
     def register_user(self, username, email, password):
         """신규 사용자 등록 로직"""
         
-        # 1. 백엔드 유효성 검사 (프론트엔드 검증은 우회 가능)
+        # 1. 백엔드 유효성 검사
         if not username or not email or not password:
             raise ValueError("사용자 이름, 이메일, 비밀번호는 필수입니다.")
             
@@ -50,9 +50,17 @@ class AuthService:
         # 2. 비밀번호 검증
         if user and check_password_hash(user.password_hash, password):
             # 3. JWT 토큰 생성
-            # 💡 (중요) user.id를 'identity'로 사용하여 토큰 발급
             access_token = create_access_token(identity=user.id) 
-            return {"access_token": access_token, "username": user.username}
+            
+            # 💡 [개선] 프론트엔드에서 활용하기 쉽도록 사용자 상세 정보를 함께 반환
+            return {
+                "access_token": access_token,
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email
+                }
+            }
         else:
             raise ValueError("이메일 또는 비밀번호가 올바르지 않습니다.")
 

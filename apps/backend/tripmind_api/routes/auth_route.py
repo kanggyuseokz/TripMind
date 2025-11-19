@@ -40,15 +40,14 @@ def login():
         email = data.get('email')
         password = data.get('password')
         
-        token_data = auth_service_instance.login_user(email, password)
-        
+        token_data = auth_service_instance.login_user(email, password)        
         return jsonify(token_data), 200
         
     except ValueError as e:
         return jsonify({"error": str(e)}), 401 # 401 Unauthorized
     except Exception as e:
         return jsonify({"error": f"서버 오류 발생: {e}"}), 500
-
+    
 @bp.get("/protected")
 @jwt_required() # 👈 이 엔드포인트는 유효한 토큰이 필요함
 def protected():
