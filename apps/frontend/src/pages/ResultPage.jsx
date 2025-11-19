@@ -194,32 +194,6 @@ export default function ResultPage() {
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 font-sans text-gray-900">
       {/* ... (나머지 렌더링 코드는 이전과 동일) ... */}
       <div className="w-full max-w-7xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden animate-fade-in relative pb-12">
-        
-        {/* 상단 바 */}
-        <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center bg-white/80 backdrop-blur-md z-10 border-b border-gray-100">
-          <div className="flex items-center gap-2 text-gray-900 font-extrabold text-xl tracking-tight cursor-pointer" onClick={() => navigate('/')}>
-            <Plane size={24} className="text-blue-600" strokeWidth={2.5} /> TripMind
-          </div>
-          <div className="flex items-center gap-3">
-            {/* 👇 [수정할 부분] 저장 버튼에 navigate 연결 */}
-            <button 
-              onClick={() => {
-                // 1. (나중에) 여기서 백엔드에 저장 API 호출
-                // 2. 저장 완료 후 페이지 이동
-                navigate('/saved'); // 저장 페이지로 이동
-              }}
-              className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors" 
-              title="저장"
-            >
-              <ShoppingBag size={20} />
-            </button>
-
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">U</div>
-            <button onClick={() => navigate('/planner')} className="p-2 text-gray-400 hover:text-gray-700 transition-colors">
-              <X size={24} />
-            </button>
-          </div>
-        </div>
 
         {/* 히어로 이미지 */}
         <div className="relative h-80 bg-cover bg-center group" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=1920&q=80)' }}>

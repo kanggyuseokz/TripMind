@@ -1,30 +1,29 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-// 페이지 컴포넌트 불러오기
+import Layout from './components/Layout'; // 👈 추가
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import PlannerPage from './pages/PlannerPage';
-import ResultPage from './pages/ResultPage'; // 👈 신규 페이지 추가
-import SavedTripsPage from './pages/SavedTripPage';
+import ResultPage from './pages/ResultPage';
+import SavedTripsPage from './pages/SavedTripsPage';
+import MyPage from './pages/MyPage';
+import EditProfilePage from './pages/EditProfilePage';
 
 export default function App() {
   return (
     <Router>
       <Routes>
-        {/* 기본 경로 */}
-        <Route path="/" element={<LandingPage />} />
-        
-        {/* 로그인 */}
-        <Route path="/login" element={<LoginPage />} />
-        
-        {/* 입력 폼 (Planner) */}
-        <Route path="/planner" element={<PlannerPage />} />
-        
-        {/* 결과 화면 (Result) */}
-        <Route path="/result" element={<ResultPage />} />
-
-        <Route path="/saved" element={<SavedTripsPage />} />
+        {/* 모든 페이지를 Layout으로 감쌉니다 */}
+        <Route element={<Layout />}>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/planner" element={<PlannerPage />} />
+          <Route path="/result" element={<ResultPage />} />
+          <Route path="/saved" element={<SavedTripsPage />} />
+          <Route path="/mypage" element={<MyPage />} />
+          <Route path="/mypage/edit" element={<EditProfilePage />} />
+        </Route>
       </Routes>
     </Router>
   );
