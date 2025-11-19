@@ -6,6 +6,7 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import PlannerPage from './pages/PlannerPage';
 import ResultPage from './pages/ResultPage'; // 👈 신규 페이지 추가
+import SavedTripsPage from './pages/SavedTripPage';
 
 export default function App() {
   return (
@@ -22,6 +23,8 @@ export default function App() {
         
         {/* 결과 화면 (Result) */}
         <Route path="/result" element={<ResultPage />} />
+
+        <Route path="/saved" element={<SavedTripsPage />} />
       </Routes>
     </Router>
   );
