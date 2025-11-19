@@ -1,0 +1,357 @@
+// tripmind/apps/frontend/src/pages/LoginPage.jsx
+import React, { useState, useEffect } from 'react';
+
+// --- 아이콘 컴포넌트 ---
+// ... (기존 아이콘 코드, UserIcon, LockIcon 등) ...
+const UserIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+const LockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
+const EmailIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>;
+const GoogleIcon = () => (
+  <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    {/* ... (Google 아이콘 경로) ... */}
+    <path fill="#4285F4" d="M22.0001 12.2272c0-.8182-.0727-1.6-.2045-2.3636h-9.6091v4.4545h5.4a4.622 4.622 0 0 1-1.9909 3.0364v2.8864h3.7091c2.1682-2.0091 3.4182-4.9455 3.4182-8.0136z"/>
+    <path fill="#34A853" d="M12.1865 22c3.2182 0 5.9273-1.0636 7.9-2.8864l-3.7091-2.8864c-1.0636.7182-2.4364 1.1455-3.9545 1.1455-3.0455 0-5.6182-2.0682-6.5455-4.8545H1.9274v2.9818C3.9001 20.109 7.8092 22 12.1865 22z"/>
+    <path fill="#FBBC05" d="M5.641 14.1545c-.2182-.7182-.3455-1.4636-.3455-2.2273s.1273-1.5091.3455-2.2273V6.7182H1.9274c-.7818 1.5636-1.2364 3.2909-1.2364 5.1091s.4545 3.5455 1.2364 5.1091l3.7136-2.9818z"/>
+    <path fill="#EA4335" d="M12.1865 5.5273c1.7545 0 3.3273.6091 4.5636 1.7818l3.2818-3.2818C18.1092 2.1545 15.4 1 12.1865 1c-4.3773 0-8.2864 2.8909-10.2591 6.7182l3.7136 2.9818c.9273-2.7864 3.5-4.8545 6.5455-4.8545z"/>
+  </svg>
+);
+const NaverIcon = () => (
+  <span className="w-5 h-5 flex items-center justify-center font-bold text-lg">N</span>
+);
+
+// --- 폰트 및 공용 스타일 (index.css나 App.jsx에 있어야 함) ---
+const GlobalStyles = () => {
+  // ... (기존 GlobalStyles 코드) ...
+  useEffect(() => {
+    // ... (폰트 및 스타일 로드) ...
+  }, []);
+  return null;
+};
+
+// --- Helper 컴포넌트: SocialButton ---
+const SocialButton = ({ provider, icon, text, bgColor, textColor }) => (
+  // ... (기존 SocialButton 코드) ...
+  <a
+    href={`/api/auth/${provider}`} // 실제 OAuth2 엔드포인트
+    className={`flex items-center justify-center w-full py-3 px-4 rounded-lg shadow-sm transition-colors
+                ${bgColor} ${textColor} font-semibold`}
+  >
+    {icon}
+    <span className="ml-3">{text}</span>
+  </a>
+);
+
+// -----------------------------------------------------------------
+// --- 로그인 폼 컴포넌트 ---
+// -----------------------------------------------------------------
+const LoginForm = ({ setPage }) => {
+  // 💡 1. 로그인 폼 상태 관리
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // 💡 2. 로그인 제출 로직
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/auth/login', { // 👈 백엔드 로그인 API
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '로그인에 실패했습니다.');
+      }
+
+      // 로그인 성공 시 (예: 토큰 저장, 메인 페이지로 이동)
+      console.log('로그인 성공:', data);
+      // alert('로그인 성공!'); // 실제로는 페이지 이동
+      // (예: localStorage.setItem('token', data.access_token); window.location.href = '/';)
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="animate-fade-in">
+      <h1 className="text-3xl font-bold text-center text-gray-900 mb-4">로그인</h1>
+      <p className="text-gray-600 text-center mb-8">TripMind에 다시 오신 것을 환영합니다!</p>
+      
+      {/* 💡 3. 폼 onSubmit 및 input onChange 연결 */}
+      <form onSubmit={handleLogin} className="space-y-6">
+        {/* 이메일 */}
+        <div>
+          <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-2">이메일 주소</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><EmailIcon /></span>
+            <input 
+              id="login-email" 
+              type="email" 
+              placeholder="email@example.com" 
+              required 
+              className="input-field" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+        </div>
+        
+        {/* 비밀번호 */}
+        <div>
+          <label htmlFor="login-password" className="block text-sm font-medium text-gray-700 mb-2">비밀번호</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><LockIcon /></span>
+            <input 
+              id="login-password" 
+              type="password" 
+              placeholder="비밀번호" 
+              required 
+              className="input-field" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* 💡 4. 오류 메시지 표시 */}
+        {error && (
+          <div className="text-red-600 text-sm text-center">{error}</div>
+        )}
+
+        <div className="text-right">
+          <a href="#" className="text-sm font-medium text-blue-600 hover:text-blue-500">
+            비밀번호를 잊으셨나요?
+          </a>
+        </div>
+        
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center text-lg disabled:opacity-75"
+        >
+          {loading ? '로그인 중...' : '로그인'}
+        </button>
+
+        {/* ... (기존 소셜 로그인 버튼) ... */}
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300"></div></div>
+          <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">또는</span></div>
+        </div>
+        <div className="space-y-4">
+          <SocialButton provider="google" icon={<GoogleIcon />} text="Google 계정으로 로그인" bgColor="bg-white border border-gray-300 hover:bg-gray-50" textColor="text-gray-700"/>
+          <SocialButton provider="naver" icon={<NaverIcon />} text="네이버 아이디로 로그인" bgColor="bg-[#03C75A] hover:bg-[#03b350]" textColor="text-white"/>
+        </div>
+      </form>
+      
+      {/* 회원가입 토글 */}
+      <p className="text-center text-sm text-gray-600 mt-8">
+        계정이 없으신가요?{' '}
+        <button
+          onClick={() => setPage('register')} // 👈 상태 변경
+          className="font-semibold text-blue-600 hover:text-blue-500"
+        >
+          회원가입
+        </button>
+      </p>
+    </div>
+  );
+};
+
+// -----------------------------------------------------------------
+// --- 회원가입 폼 컴포넌트 (수정됨) ---
+// -----------------------------------------------------------------
+const RegisterForm = ({ setPage }) => {
+  // 💡 1. 회원가입 폼 상태 관리
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // 💡 2. 회원가입 제출 로직
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    // 💡 2-A. 프론트엔드 비밀번호 검증
+    if (password !== passwordConfirm) {
+      setError('비밀번호가 일치하지 않습니다.');
+      setLoading(false);
+      return;
+    }
+    if (password.length < 8) {
+      setError('비밀번호는 8자 이상이어야 합니다.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // 💡 2-B. 백엔드 회원가입 API 호출
+      const response = await fetch('/api/auth/register', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '회원가입에 실패했습니다.');
+      }
+
+      // 회원가입 성공 시
+      console.log('회원가입 성공:', data);
+      alert('회원가입 성공! 로그인 페이지로 이동합니다.');
+      setPage('login'); // 👈 로그인 페이지로 자동 전환
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="animate-fade-in">
+      <h1 className="text-3xl font-bold text-center text-gray-900 mb-4">회원가입</h1>
+      <p className="text-gray-600 text-center mb-8">TripMind와 함께 여행을 계획해 보세요.</p>
+      
+      {/* 💡 3. 폼 onSubmit 및 input onChange 연결 */}
+      <form onSubmit={handleRegister} className="space-y-6">
+        {/* 사용자 이름 */}
+        <div>
+          <label htmlFor="reg-username" className="block text-sm font-medium text-gray-700 mb-2">사용자 이름</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><UserIcon /></span>
+            <input 
+              id="reg-username" 
+              type="text" 
+              placeholder="이름을 입력하세요" 
+              required 
+              className="input-field" 
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* 이메일 */}
+        <div>
+          <label htmlFor="reg-email" className="block text-sm font-medium text-gray-700 mb-2">이메일 주소</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><EmailIcon /></span>
+            <input 
+              id="reg-email" 
+              type="email" 
+              placeholder="email@example.com" 
+              required 
+              className="input-field" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+        </div>
+        
+        {/* 비밀번호 */}
+        <div>
+          <label htmlFor="reg-password" className="block text-sm font-medium text-gray-700 mb-2">비밀번호</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><LockIcon /></span>
+            <input 
+              id="reg-password" 
+              type="password" 
+              placeholder="비밀번호 (8자 이상)" 
+              required 
+              className="input-field" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+        </div>
+        
+        {/* 💡 4. 비밀번호 확인 필드 추가 */}
+        <div>
+          <label htmlFor="reg-password-confirm" className="block text-sm font-medium text-gray-700 mb-2">비밀번호 확인</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><LockIcon /></span>
+            <input 
+              id="reg-password-confirm" 
+              type="password" 
+              placeholder="비밀번호 다시 입력" 
+              required 
+              className="input-field" 
+              value={passwordConfirm}
+              onChange={(e) => setPasswordConfirm(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* 💡 5. 오류 메시지 표시 */}
+        {error && (
+          <div className="text-red-600 text-sm text-center">{error}</div>
+        )}
+        
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center text-lg disabled:opacity-75"
+        >
+          {loading ? '계정 생성 중...' : '계정 생성하기'}
+        </button>
+      </form>
+      
+      {/* 로그인 토글 */}
+      <p className="text-center text-sm text-gray-600 mt-8">
+        이미 계정이 있으신가요?{' '}
+        <button
+          onClick={() => setPage('login')} // 👈 상태 변경
+          className="font-semibold text-blue-600 hover:text-blue-500"
+        >
+          로그인
+        </button>
+      </p>
+    </div>
+  );
+};
+
+// -----------------------------------------------------------------
+// --- 메인 페이지 컴포넌트 (Default Export) ---
+// -----------------------------------------------------------------
+export default function LoginPage() {
+  // 'login' 또는 'register' 상태를 관리
+  const [page, setPage] = useState('login'); 
+
+  return (
+    <div className="min-h-screen flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8">
+      <GlobalStyles />
+      
+      {/* 로고 (헤더 대신 간단히 표시) */}
+      <div className="mb-8">
+        <a href="/" className="text-4xl font-extrabold font-inter text-gray-900">
+          TripMind
+        </a>
+      </div>
+
+      {/* 폼 카드 */}
+      <div className="w-full max-w-md p-8 sm:p-10 bg-white rounded-xl shadow-2xl overflow-hidden">
+        {page === 'login' ? (
+          <LoginForm setPage={setPage} />
+        ) : (
+          <RegisterForm setPage={setPage} />
+        )}
+      </div>
+    </div>
+  );
+}

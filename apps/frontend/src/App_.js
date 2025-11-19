@@ -1,28 +1,46 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; 
-import { Send, Plane, Loader2, Menu, X, Search, Calendar } from 'lucide-react';
+import { Send, Plane, Calendar, Loader2, AlertCircle, Menu, X, Search } from 'lucide-react';
 
-export default function LandingPage() {
-  const navigate = useNavigate();
+function App() {
   const [prompt, setPrompt] = useState('');
+  const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const goLogin = () => navigate('/login');
+  // 백엔드 API 주소
+  const API_URL = 'http://127.0.0.1:8080/api/llm/complete';
 
-  const handlePlanTrip = () => {
+  const handlePlanTrip = async () => {
     if (!prompt.trim()) return;
+
     setLoading(true);
     setError('');
+    setResult('');
 
-    // 1.5초 뒤 플래너 페이지로 이동 (입력한 내용을 state로 전달)
-    setTimeout(() => {
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: prompt,
+          system: "당신은 전문적인 여행 플래너입니다. 사용자의 요청에 맞춰 하루 단위의 상세한 여행 일정, 추천 맛집, 이동 동선, 팁 등을 포함하여 한국어로 친절하게 답변해주세요."
+        }),
+      });
+
+      if (!response.ok) throw new Error(`서버 오류: ${response.status}`);
+
+      const data = await response.json();
+      setResult(data.output || '답변이 비어있습니다.');
+    } catch (err) {
+      console.error(err);
+      setError('여행 계획을 가져오는 데 실패했습니다.');
+    } finally {
       setLoading(false);
-      navigate('/planner', { state: { initialPrompt: prompt } });
-    }, 1500);
+    }
   };
 
+  // 사진 속 느낌을 내기 위한 더미 데이터 (우측 카드 리스트용)
   const destinations = [
     { city: 'OSAKA', name: '오사카', image: 'https://images.unsplash.com/photo-1590559399607-57523cd47a61?w=400&q=80' },
     { city: 'TOKYO', name: '도쿄', image: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&q=80' },
@@ -34,32 +52,33 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-white font-sans text-gray-900">
-      {/* 헤더 */}
+      {/* 헤더 (네비게이션) */}
       <header className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-md z-50 h-20 flex items-center border-b border-gray-100">
         <div className="container mx-auto px-6 lg:px-12 flex justify-between items-center w-full">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
+          {/* 로고 */}
+          <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center text-white">
               <Plane size={20} strokeWidth={2.5} />
             </div>
             <span className="text-xl font-bold tracking-tight text-gray-900">TRIPMIND</span>
           </div>
 
+          {/* 데스크탑 메뉴 */}
           <nav className="hidden md:flex items-center gap-8 text-[15px] font-medium text-gray-600">
-            <button className="hover:text-black transition-colors">여행지</button>
-            <button className="hover:text-black transition-colors">고객지원</button>
-            <button className="hover:text-black transition-colors">이용방법</button>
-            <button onClick={goLogin} className="text-blue-600 hover:text-blue-700 font-semibold transition-colors">
-              로그인
-            </button>
+            <a href="#" className="hover:text-black transition-colors">여행지</a>
+            <a href="#" className="hover:text-black transition-colors">고객지원</a>
+            <a href="#" className="hover:text-black transition-colors">이용방법</a>
+            <a href="#" className="hover:text-black transition-colors">로그인</a>
           </nav>
 
+          {/* 모바일 메뉴 버튼 */}
           <button className="md:hidden" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
       </header>
 
-      {/* 메인 콘텐츠 */}
+      {/* 메인 콘텐츠 (좌우 분할 레이아웃) */}
       <main className="pt-20 min-h-screen flex flex-col lg:flex-row">
         
         {/* 좌측: 텍스트 & 설명 영역 */}
@@ -74,8 +93,9 @@ export default function LandingPage() {
               AI가 당신의 취향에 맞는 완벽한 일정을 제안합니다.
             </p>
             
+            {/* 시작하기 버튼 */}
             <button 
-              onClick={goLogin}
+              onClick={() => document.getElementById('ai-input').focus()}
               className="bg-black text-white px-10 py-4 text-lg font-semibold rounded-sm hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
             >
               TripMind로 시작하기
@@ -83,11 +103,15 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* 우측: 기능 영역 */}
+        {/* 우측: 기능 & 비주얼 영역 (사진 속 우측 화면 구현) */}
         <div className="flex-1 bg-gray-50 p-6 lg:p-12 flex items-center justify-center relative overflow-hidden">
+          {/* 배경 장식 원 */}
           <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-100 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
+
+          {/* 목업 컨테이너 (사진 속 하얀색 박스 영역) */}
           <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[800px] relative z-10">
             
+            {/* 1. 상단 AI 입력바 (사진 속 검색창 위치) */}
             <div className="p-6 border-b border-gray-100 bg-white sticky top-0 z-20">
               <div className="text-center mb-4">
                 <h3 className="text-lg font-bold text-gray-800">어디로 여행을 떠나시나요?</h3>
@@ -99,6 +123,7 @@ export default function LandingPage() {
                   <Search size={20} />
                 </div>
                 <textarea
+                  id="ai-input"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="예: 서울 출발 2박 3일 부산 여행, 바다 보이는 카페 추천해줘"
@@ -118,31 +143,67 @@ export default function LandingPage() {
               </div>
             </div>
 
+            {/* 2. 결과 또는 추천 여행지 리스트 */}
             <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {destinations.map((dest, idx) => (
-                  <div 
-                    key={idx} 
-                    onClick={() => setPrompt(`${dest.name} 여행 계획 짜줘`)}
-                    className="group cursor-pointer bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-gray-100 relative aspect-[3/4]"
-                  >
-                    <img 
-                      src={dest.image} 
-                      alt={dest.name} 
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80"></div>
-                    <div className="absolute bottom-0 left-0 w-full p-3 text-white">
-                      <p className="text-[10px] font-bold tracking-wider uppercase opacity-80">{dest.city}</p>
-                      <p className="font-bold text-sm">{dest.name}</p>
+              
+              {/* 에러 메시지 */}
+              {error && (
+                <div className="mb-6 bg-red-50 text-red-600 p-4 rounded-xl text-sm flex items-center gap-2">
+                  <AlertCircle size={16} /> {error}
+                </div>
+              )}
+
+              {/* 결과가 있을 때: 결과 표시 */}
+              {result ? (
+                <div className="prose prose-sm max-w-none">
+                   <div className="flex items-center gap-2 mb-4 text-blue-600 font-bold">
+                    <Calendar size={18} />
+                    <span>생성된 여행 플랜</span>
+                   </div>
+                   <div className="whitespace-pre-wrap text-gray-700 bg-white p-6 rounded-xl border border-gray-100 shadow-sm leading-7">
+                     {result}
+                   </div>
+                   <button 
+                    onClick={() => setResult('')}
+                    className="mt-4 text-xs text-gray-500 underline hover:text-black w-full text-center"
+                   >
+                    다시 검색하기
+                   </button>
+                </div>
+              ) : (
+                /* 결과가 없을 때: 사진처럼 여행지 카드 그리드 표시 */
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {destinations.map((dest, idx) => (
+                    <div 
+                      key={idx} 
+                      onClick={() => setPrompt(`${dest.name} 여행 계획 짜줘`)}
+                      className="group cursor-pointer bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-gray-100 relative aspect-[3/4]"
+                    >
+                      <img 
+                        src={dest.image} 
+                        alt={dest.name} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80"></div>
+                      <div className="absolute bottom-0 left-0 w-full p-3 text-white">
+                        <p className="text-[10px] font-bold tracking-wider uppercase opacity-80">{dest.city}</p>
+                        <p className="font-bold text-sm">{dest.name}</p>
+                      </div>
+                      {/* 뱃지 예시 */}
+                      {idx < 2 && (
+                        <div className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">HOT</div>
+                      )}
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
+
           </div>
         </div>
       </main>
     </div>
   );
 }
+
+export default App;
