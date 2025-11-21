@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
-// --- 아이콘 컴포넌트 ---
+// ... (아이콘 컴포넌트들은 그대로 유지) ...
 const UserIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
 const LockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
 const EmailIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>;
@@ -10,21 +10,28 @@ const GoogleIcon = () => (<svg className="w-5 h-5" viewBox="0 0 24 24"><path fil
 const NaverIcon = () => (<span className="w-5 h-5 flex items-center justify-center font-bold text-lg text-white">N</span>);
 
 const SocialButton = ({ provider, icon, text, bgColor, textColor }) => (
-  <button className={`flex items-center justify-center w-full py-3 px-4 rounded-lg shadow-sm transition-colors ${bgColor} ${textColor} font-semibold`}>
-    {icon} <span className="ml-3">{text}</span>
-  </button>
+  <button className={`flex items-center justify-center w-full py-3 px-4 rounded-lg shadow-sm transition-colors ${bgColor} ${textColor} font-semibold`} onClick={() => alert(`${provider} 로그인 (준비중)`)}>{icon} <span className="ml-3">{text}</span></button>
 );
 
+// --- 로그인 폼 ---
 const LoginForm = ({ setPage }) => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState(''); // 여기는 원래 잘 있었습니다.
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => { setLoading(false); navigate('/'); }, 1000);
+    setError('');
+    
+    setTimeout(() => { 
+        setLoading(false); 
+        localStorage.setItem('token', 'dummy-token'); 
+        alert('로그인 성공!'); 
+        navigate('/'); 
+    }, 1000);
   };
 
   return (
@@ -34,6 +41,7 @@ const LoginForm = ({ setPage }) => {
       <form onSubmit={handleLogin} className="space-y-6">
         <div><label className="block text-sm font-medium text-gray-700 mb-2">이메일 주소</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><EmailIcon /></span><input type="email" required className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com"/></div></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-2">비밀번호</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><LockIcon /></span><input type="password" required className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="비밀번호"/></div></div>
+        {error && <div className="text-red-600 text-sm text-center">{error}</div>}
         <div className="text-right"><a href="#" className="text-sm font-medium text-blue-600 hover:text-blue-500">비밀번호를 잊으셨나요?</a></div>
         <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition-all disabled:opacity-75">{loading ? '로그인 중...' : '로그인'}</button>
         <div className="relative my-6"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300"></div></div><div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">또는</span></div></div>
@@ -44,19 +52,24 @@ const LoginForm = ({ setPage }) => {
   );
 };
 
+// --- 회원가입 폼 ---
 const RegisterForm = ({ setPage }) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
-  const [error, setError] = useState('');
+  
+  // 👇 [필수] 이 줄이 꼭 있어야 합니다! (setError 정의)
+  const [error, setError] = useState(''); 
+  
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError(''); // 정의된 setError 사용
     if (password !== passwordConfirm) { setError('비밀번호가 일치하지 않습니다.'); setLoading(false); return; }
+    
     setTimeout(() => { setLoading(false); alert('회원가입 성공!'); setPage('login'); }, 1000);
   };
 
@@ -69,7 +82,10 @@ const RegisterForm = ({ setPage }) => {
         <div><label className="block text-sm font-medium text-gray-700 mb-2">이메일 주소</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><EmailIcon /></span><input type="email" required className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com"/></div></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-2">비밀번호</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><LockIcon /></span><input type="password" required className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="비밀번호 (8자 이상)"/></div></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-2">비밀번호 확인</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><LockIcon /></span><input type="password" required className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} placeholder="비밀번호 다시 입력"/></div></div>
+        
+        {/* 에러 메시지 표시 */}
         {error && <div className="text-red-600 text-sm text-center">{error}</div>}
+        
         <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition-all disabled:opacity-75">{loading ? '계정 생성 중...' : '계정 생성하기'}</button>
       </form>
       <p className="text-center text-sm text-gray-600 mt-8">이미 계정이 있으신가요? <button onClick={() => setPage('login')} className="font-semibold text-blue-600 hover:text-blue-500">로그인</button></p>
@@ -77,6 +93,7 @@ const RegisterForm = ({ setPage }) => {
   );
 };
 
+// --- 메인 페이지 컴포넌트 ---
 export default function LoginPage() {
   const [page, setPage] = useState('login');
   const navigate = useNavigate();

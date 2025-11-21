@@ -24,46 +24,22 @@ export default function LandingPage() {
   };
 
   const destinations = [
-    { city: 'OSAKA', name: '오사카', image: 'https://images.unsplash.com/photo-1590559399607-57523cd47a61?w=400&q=80' },
+    { city: 'OSAKA', name: '오사카', image: 'https://images.unsplash.com/photo-1589452271712-64b8a66c7b71?q=80&w=1742&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
     { city: 'TOKYO', name: '도쿄', image: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&q=80' },
-    { city: 'DANANG', name: '다낭', image: 'https://images.unsplash.com/photo-1559592413-7cec430aaec3?w=400&q=80' },
-    { city: 'NEW YORK', name: '뉴욕', image: 'https://images.unsplash.com/photo-1496442226666-8d4a0e2907eb?w=400&q=80' },
+    { city: 'DANANG', name: '다낭', image: 'https://images.unsplash.com/photo-1558002890-c0b30998d1e6?q=80&w=1742&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
+    { city: 'NEW YORK', name: '뉴욕', image: 'https://images.unsplash.com/photo-1541336032412-2048a678540d?q=80&w=3087&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
     { city: 'PARIS', name: '파리', image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&q=80' },
-    { city: 'JEJU', name: '제주', image: 'https://images.unsplash.com/photo-1548115184-bc6544d06a58?w=400&q=80' },
+    { city: 'JEJU', name: '제주', image: 'https://images.unsplash.com/photo-1695321924057-91977a88eae1?q=80&w=550&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
   ];
 
   return (
     <div className="min-h-screen bg-white font-sans text-gray-900">
-      {/* 헤더 */}
-      <header className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-md z-50 h-20 flex items-center border-b border-gray-100">
-        <div className="container mx-auto px-6 lg:px-12 flex justify-between items-center w-full">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-            <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center text-white">
-              <Plane size={20} strokeWidth={2.5} />
-            </div>
-            <span className="text-xl font-bold tracking-tight text-gray-900">TRIPMIND</span>
-          </div>
-
-          <nav className="hidden md:flex items-center gap-8 text-[15px] font-medium text-gray-600">
-            <button className="hover:text-black transition-colors">여행지</button>
-            <button className="hover:text-black transition-colors">고객지원</button>
-            <button className="hover:text-black transition-colors">이용방법</button>
-            <button onClick={goLogin} className="text-blue-600 hover:text-blue-700 font-semibold transition-colors">
-              로그인
-            </button>
-          </nav>
-
-          <button className="md:hidden" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        </div>
-      </header>
 
       {/* 메인 콘텐츠 */}
-      <main className="pt-20 min-h-screen flex flex-col lg:flex-row">
+      <main className="flex flex-col lg:flex-row">
         
         {/* 좌측: 텍스트 & 설명 영역 */}
-        <div className="flex-1 flex flex-col justify-center px-6 lg:px-16 py-12 lg:py-0 bg-white z-10">
+        <div className="flex-1 flex flex-col justify-center lg:justify-start lg:pt-32 px-6 lg:px-16 py-12 bg-white z-10">
           <div className="max-w-xl mx-auto lg:mx-0">
             <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-extrabold leading-[1.2] tracking-tight text-gray-900 mb-6">
               기존에 경험하지 못한<br />
