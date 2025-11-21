@@ -1,6 +1,17 @@
 # backend/tripmind_api/extensions.py
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from flask_jwt_extended import JWTManager
+from flask_cors import CORS
 
-# 1. SQLAlchemy 인스턴스를 여기서 생성합니다.
-# 이 'db' 객체를 __init__.py와 models.py에서 공통으로 import하여 사용합니다.
+# 1. 데이터베이스 ORM
 db = SQLAlchemy()
+
+# 2. DB 마이그레이션 관리 도구
+migrate = Migrate()
+
+# 3. JWT 토큰 인증 관리 도구
+jwt = JWTManager()
+
+# 4. CORS (Cross-Origin Resource Sharing) 보안 설정 도구
+cors = CORS()
