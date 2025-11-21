@@ -135,3 +135,37 @@ def save_trip():
         db.session.rollback()
         print(f"Save Error: {e}")
         return jsonify({"ok": False, "error": str(e)}), 500
+    
+@bp.post("/modify")
+def modify_trip_plan():
+    """
+    사용자의 피드백을 받아 특정 일정(Slot)을 수정합니다.
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+
+    try:
+        current_plan = data.get("current_plan")
+        target_slot = data.get("target_slot") # { dayIndex: 0, eventIndex: 1 }
+        user_prompt = data.get("user_prompt")
+
+        if not current_plan or not target_slot or not user_prompt:
+            return jsonify({"error": "Missing required fields"}), 400
+
+        # 1. LLM 서비스에 수정 요청 위임
+        # (llm_service.modify_plan 메서드는 새로 구현해야 함)
+        modified_event = llm_service.modify_plan(current_plan, target_slot, user_prompt)
+        
+        # 2. 수정된 이벤트 반환
+        # 프론트엔드에서는 이 응답을 받아 해당 Slot만 갈아끼웁니다.
+        return jsonify({
+            "ok": True,
+            "modified_event": modified_event
+        }), 200
+
+    except LLMServiceError as e:
+        return jsonify({"error": f"LLM modification failed: {e}"}), 500
+    except Exception as e:
+        print(f"Modify Error: {e}")
+        return jsonify({"error": str(e)}), 500

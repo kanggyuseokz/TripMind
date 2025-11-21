@@ -124,12 +124,83 @@ class LLMService:
             return response_json['choices'][0]['message']['content']
         except (KeyError, IndexError) as e:
             raise LLMServiceError(f"Failed to parse LLM's chat response: {e}")
+    
+    # --- 💡 [NEW] 여행 계획 수정 기능 추가 (Hugging Face 사용) ---
+    def modify_plan(self, current_plan: dict, target_slot: dict, user_prompt: str) -> dict:
+        """
+        기존 계획과 사용자의 요청을 바탕으로 특정 일정을 수정합니다.
+        """
+        day_idx = target_slot.get('dayIndex')
+        event_idx = target_slot.get('eventIndex')
+        
+        # 1. 수정 대상 일정 가져오기
+        try:
+            target_event = current_plan['schedule'][day_idx]['events'][event_idx]
+        except (IndexError, KeyError, TypeError):
+            raise LLMServiceError("Invalid target slot index or plan structure")
 
-    # --- 내부 LLM 호출 함수 (수정 없음) ---
+        # 2. 프롬프트 구성
+        system_prompt = """
+        You are a professional travel planner. 
+        Your task is to modify a specific travel event based on the user's feedback.
+        Return ONLY a valid JSON object representing the modified event.
+        The JSON structure must match the 'Current Event' format.
+        """
+
+        user_message = f"""
+        [Current Event]
+        {json.dumps(target_event, ensure_ascii=False)}
+
+        [User Request]
+        "{user_prompt}"
+
+        Please provide the modified event as a JSON object.
+        Keys required: "time_slot", "description", "icon".
+        - "icon" should be one of: "plane", "shopping", "utensils", "home", "coffee", "car".
+        """
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message}
+        ]
+
+        try:
+            # 3. LLM 호출 (JSON 모드)
+            llm_response = self._call_llm(messages, response_format={"type": "json_object"})
+            content = llm_response['choices'][0]['message']['content']
+            
+            # 4. JSON 파싱
+            modified_event = json.loads(content)
+            
+            # 필수 필드 보정 (LLM이 누락했을 경우 원본 값 사용)
+            if 'time_slot' not in modified_event:
+                modified_event['time_slot'] = target_event.get('time_slot')
+            if 'icon' not in modified_event:
+                modified_event['icon'] = target_event.get('icon', 'map-pin')
+                
+            return modified_event
+
+        except (json.JSONDecodeError, KeyError, IndexError, LLMServiceError) as e:
+            print(f"LLM Modify Error: {e}")
+            # 실패 시 기본 응답 생성 (에러를 내지 않고 텍스트만 변경)
+            fallback_event = target_event.copy()
+            fallback_event['description'] = f"[수정됨] {user_prompt} (AI 응답 실패로 단순 반영)"
+            return fallback_event
+
+    # --- 내부 LLM 호출 함수 (기존 코드 유지) ---
     def _call_llm(self, messages: list[dict], response_format: dict | None = None) -> dict:
         """LLM API를 호출하는 내부 메소드 (동기)"""
-        headers = {"Authorization": f"Bearer {self.hf_token}", "Content-Type": "application/json"}
-        payload = {"model": self.model, "messages": messages}
+        # 💡 기존의 HF_TOKEN 인증 방식 유지
+        headers = {
+            "Authorization": f"Bearer {self.hf_token}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": 0.7, # 창의성 조절
+            "max_tokens": 500
+        }
         if response_format:
             payload["response_format"] = response_format
         
@@ -139,4 +210,5 @@ class LLMService:
             return response.json()
         except requests.RequestException as e:
             error_details = e.response.text if e.response else str(e)
+            # 401 Unauthorized 에러가 여기서 발생하면 .env의 HF_TOKEN을 확인해야 합니다.
             raise LLMServiceError(f"Failed to call LLM API: {error_details}")
