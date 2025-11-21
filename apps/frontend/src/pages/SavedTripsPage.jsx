@@ -1,12 +1,31 @@
-// apps/frontend/src/pages/SavedTripsPage.jsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plane, Calendar, MapPin, ArrowRight, Trash2, ArrowLeft } from 'lucide-react';
 
+// 💡 [TIP] 도시별 대표 이미지 매핑 함수
+// 백엔드에서 이미지를 안 보내줄 때, 프론트에서 이름으로 찾아서 보여줍니다.
+const getCityImage = (destination) => {
+  const keyword = destination.split('/')[0].trim(); // "오사카/간사이" -> "오사카"
+  
+  const images = {
+    '오사카': 'https://images.unsplash.com/photo-1590559399607-57523cd47a61?w=800&q=80',
+    '도쿄': 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&q=80',
+    '다낭': 'https://images.unsplash.com/photo-1559592413-7cec430aaec3?w=800&q=80',
+    '제주': 'https://images.unsplash.com/photo-1548115184-bc6544d06a58?w=800&q=80',
+    '파리': 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800&q=80',
+    '뉴욕': 'https://images.unsplash.com/photo-1496442226666-8d4a0e2907eb?w=800&q=80',
+    '방콕': 'https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=800&q=80',
+    '런던': 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&q=80',
+  };
+
+  // 매핑된 이미지가 있으면 반환, 없으면 랜덤 여행 이미지(기본값) 반환
+  return images[keyword] || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80';
+};
+
 export default function SavedTripsPage() {
   const navigate = useNavigate();
 
-  // 백엔드 연동 전 사용할 더미 데이터
+  // 백엔드에서 받아올 데이터 예시 (이미지가 없다고 가정)
   const savedTrips = [
     {
       id: 1,
@@ -15,7 +34,6 @@ export default function SavedTripsPage() {
       startDate: '2025-10-23',
       endDate: '2025-10-26',
       durationText: '3박 4일',
-      image: 'https://images.unsplash.com/photo-1590559399607-57523cd47a61?w=800&q=80',
       cost: '1,000,000',
       partySize: 2
     },
@@ -26,7 +44,6 @@ export default function SavedTripsPage() {
       startDate: '2025-12-20',
       endDate: '2025-12-27',
       durationText: '6박 7일',
-      image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800&q=80',
       cost: '3,500,000',
       partySize: 1
     },
@@ -37,20 +54,28 @@ export default function SavedTripsPage() {
       startDate: '2025-11-10',
       endDate: '2025-11-12',
       durationText: '2박 3일',
-      image: 'https://images.unsplash.com/photo-1548115184-bc6544d06a58?w=800&q=80',
       cost: '500,000',
       partySize: 4
+    },
+    {
+      id: 4,
+      destination: '뉴욕 (JFK)',
+      title: '뉴욕 시티 탐방',
+      startDate: '2026-01-01',
+      endDate: '2026-01-10',
+      durationText: '9박 10일',
+      cost: '5,000,000',
+      partySize: 2
     }
   ];
 
-  // 카드 클릭 시 결과 페이지로 이동 (데이터 전달)
   const handleCardClick = (trip) => {
     const tripData = {
       destination: trip.destination,
       startDate: trip.startDate,
       endDate: trip.endDate,
       partySize: trip.partySize,
-      budget: trip.cost.replace(/,/g, ''), // 콤마 제거 후 전달
+      budget: trip.cost.replace(/,/g, ''),
       durationText: trip.durationText
     };
     navigate('/result', { state: { tripData } });
@@ -58,7 +83,6 @@ export default function SavedTripsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
-      {/* 상단 헤더 */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
@@ -85,7 +109,6 @@ export default function SavedTripsPage() {
           </button>
         </div>
 
-        {/* 여행 리스트 그리드 */}
         {savedTrips.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {savedTrips.map((trip) => (
@@ -94,10 +117,10 @@ export default function SavedTripsPage() {
                 onClick={() => handleCardClick(trip)}
                 className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-gray-100 transition-all duration-300 cursor-pointer group relative"
               >
-                {/* 이미지 섹션 */}
                 <div className="h-48 overflow-hidden relative">
+                  {/* 💡 여기서 getCityImage 함수를 사용하여 이미지를 불러옵니다 */}
                   <img 
-                    src={trip.image} 
+                    src={getCityImage(trip.destination)} 
                     alt={trip.destination} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
@@ -110,7 +133,6 @@ export default function SavedTripsPage() {
                   </div>
                 </div>
 
-                {/* 정보 섹션 */}
                 <div className="p-5">
                   <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                     <div className="flex items-center gap-1.5">
@@ -140,7 +162,6 @@ export default function SavedTripsPage() {
             ))}
           </div>
         ) : (
-          // 저장된 여행이 없을 때
           <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-300">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
               <Plane size={32} />

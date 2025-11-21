@@ -4,10 +4,25 @@ import {
   User, Settings, LogOut, Plane, ChevronRight, MapPin, Calendar, Mail 
 } from 'lucide-react';
 
+// 💡 도시별 이미지 매핑 함수 (공통 유틸로 분리하면 더 좋음)
+const getCityImage = (destination) => {
+  const keyword = destination.split('/')[0].trim();
+  
+  const images = {
+    '오사카': 'https://images.unsplash.com/photo-1590559399607-57523cd47a61?w=800&q=80',
+    '도쿄': 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&q=80',
+    '다낭': 'https://images.unsplash.com/photo-1559592413-7cec430aaec3?w=800&q=80',
+    '제주': 'https://images.unsplash.com/photo-1548115184-bc6544d06a58?w=800&q=80',
+    '파리': 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800&q=80',
+    '뉴욕': 'https://images.unsplash.com/photo-1496442226666-8d4a0e2907eb?w=800&q=80',
+  };
+
+  return images[keyword] || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80';
+};
+
 export default function MyPage() {
   const navigate = useNavigate();
 
-  // [Mock Data] 로그인된 사용자 정보 (나중에는 전역 상태나 API로 가져옴)
   const user = {
     username: "여행자123",
     email: "traveler@example.com",
@@ -15,39 +30,22 @@ export default function MyPage() {
     tripCount: 3
   };
 
-  // [Mock Data] 최근 본 여행 (예시)
   const recentTrip = {
     destination: "오사카/간사이",
-    date: "2025.10.23 - 10.26",
-    image: "https://images.unsplash.com/photo-1590559399607-57523cd47a61?w=800&q=80"
+    date: "2025.10.23 - 10.26"
   };
 
   const handleLogout = () => {
-    // 1. 토큰 삭제 (localStorage.removeItem('token'))
-    // 2. 로그인 페이지로 이동
     alert("로그아웃 되었습니다.");
     navigate('/login');
   };
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
-      {/* 상단 헤더 */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-            <Plane size={24} className="text-blue-600" strokeWidth={2.5} />
-            <span className="text-xl font-bold tracking-tight">TripMind</span>
-          </div>
-          <button onClick={() => navigate('/')} className="text-sm font-medium text-gray-500 hover:text-gray-900">
-            메인으로
-          </button>
-        </div>
-      </header>
 
       <main className="max-w-3xl mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">마이페이지</h1>
 
-        {/* 1. 프로필 카드 */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6 flex items-center gap-5">
           <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-md">
             {user.username[0]}
@@ -72,9 +70,7 @@ export default function MyPage() {
           </button>
         </div>
 
-        {/* 2. 메뉴 그리드 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {/* 보관함 바로가기 */}
           <div 
             onClick={() => navigate('/saved')}
             className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 cursor-pointer transition-all group"
@@ -89,7 +85,6 @@ export default function MyPage() {
             <p className="text-sm text-gray-500">저장된 {user.tripCount}개의 여행 계획 보기</p>
           </div>
 
-          {/* 계정 설정 (더미) */}
           <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md cursor-pointer transition-all">
             <div className="flex justify-between items-start mb-4">
               <div className="p-2 bg-gray-50 text-gray-600 rounded-lg">
@@ -101,13 +96,13 @@ export default function MyPage() {
           </div>
         </div>
 
-        {/* 3. 최근 본 여행 (카드) */}
         <h3 className="text-lg font-bold mb-3">최근 여행 계획</h3>
         <div 
           onClick={() => navigate('/saved')}
           className="bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md cursor-pointer flex items-center h-24 transition-all"
         >
-          <img src={recentTrip.image} alt="trip" className="w-24 h-full object-cover" />
+          {/* 💡 여기서 getCityImage 함수 사용 */}
+          <img src={getCityImage(recentTrip.destination)} alt="trip" className="w-24 h-full object-cover" />
           <div className="px-5 py-3 flex-1">
             <h4 className="font-bold text-gray-800 mb-1">{recentTrip.destination} 여행</h4>
             <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -119,7 +114,6 @@ export default function MyPage() {
           </div>
         </div>
 
-        {/* 4. 로그아웃 버튼 */}
         <div className="mt-10 text-center">
           <button 
             onClick={handleLogout}
