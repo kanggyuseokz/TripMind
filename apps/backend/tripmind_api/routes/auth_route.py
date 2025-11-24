@@ -48,6 +48,30 @@ def login():
     except Exception as e:
         return jsonify({"error": f"서버 오류 발생: {e}"}), 500
     
+@bp.post("/forgot-password")
+def forgot_password():
+    """임시 비밀번호 발급 요청"""
+    try:
+        data = request.get_json()
+        email = data.get("email")
+        
+        if not email:
+            return jsonify({"error": "이메일을 입력해주세요."}), 400
+
+        # 서비스 호출 (임시 비밀번호를 받아옴)
+        temp_pw = auth_service_instance.reset_password_to_temp(email)
+        
+        # 💡 편의상 응답에 바로 보여줌
+        return jsonify({
+            "message": "임시 비밀번호가 발급되었습니다.",
+            "temp_password": temp_pw 
+        }), 200
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": f"서버 오류: {e}"}), 500
+    
 @bp.get("/protected")
 @jwt_required() # 👈 이 엔드포인트는 유효한 토큰이 필요함
 def protected():
