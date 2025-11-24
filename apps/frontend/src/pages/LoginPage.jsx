@@ -67,7 +67,15 @@ const LoginForm = ({ setPage }) => {
         <div><label className="block text-sm font-medium text-gray-700 mb-2">이메일 주소</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><EmailIcon /></span><input type="email" required className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com"/></div></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-2">비밀번호</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><LockIcon /></span><input type="password" required className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="비밀번호"/></div></div>
         {error && <div className="text-red-600 text-sm text-center">{error}</div>}
-        <div className="text-right"><a href="#" className="text-sm font-medium text-blue-600 hover:text-blue-500">비밀번호를 잊으셨나요?</a></div>
+        <div className="text-right">
+           <button 
+            type="button"
+            onClick={() => navigate('/forgot-password')}
+            className="text-sm font-medium text-blue-600 hover:text-blue-500 hover:underline"
+          >
+            비밀번호를 잊으셨나요?
+          </button>
+        </div>
         <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition-all disabled:opacity-75">{loading ? '로그인 중...' : '로그인'}</button>
         <div className="relative my-6"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300"></div></div><div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">또는</span></div></div>
         <div className="space-y-4"><SocialButton provider="google" icon={<GoogleIcon />} text="Google 계정으로 로그인" bgColor="bg-white border border-gray-300 hover:bg-gray-50" textColor="text-gray-700"/><SocialButton provider="naver" icon={<NaverIcon />} text="네이버 아이디로 로그인" bgColor="bg-[#03C75A] hover:bg-[#03b350]" textColor="text-white"/></div>

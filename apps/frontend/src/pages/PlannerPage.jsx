@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Loader2, MapPin, Calendar, Users, Wand, Wallet, Edit, Plane, ArrowLeft
+  Loader2, MapPin, Calendar, Users, Wand, Wallet, Edit, Plane
 } from 'lucide-react';
 
 // --- 아이콘 컴포넌트 ---
@@ -14,7 +14,9 @@ const WandIcon = () => <Wand size={20} />;
 const WalletIcon = () => <Wallet size={20} />;
 const EditIcon = () => <Edit size={20} />;
 
-// --- 공항 데이터 (Mock) ---
+// 💡 백엔드 API 주소 (포트 8080)
+const API_BASE_URL = "http://127.0.0.1:8080/api/trip";
+
 const POPULAR_LOCATIONS = [
   { code: 'ICN', name: '서울/인천', country: '대한민국' },
   { code: 'GMP', name: '서울/김포', country: '대한민국' },
@@ -34,7 +36,6 @@ const POPULAR_LOCATIONS = [
   { code: 'LAX', name: '로스앤젤레스', country: '미국' },
 ];
 
-// --- 검색 입력 컴포넌트 ---
 const LocationSearchInput = ({ label, icon, value, onChange, placeholder }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -104,7 +105,6 @@ export default function PlannerPage() {
   const location = useLocation();
   const initialPrompt = location.state?.initialPrompt || '';
 
-  // 폼 상태 관리
   const [origin, setOrigin] = useState('서울/인천 (ICN)');
   const [destination, setDestination] = useState('');
   const [startDate, setStartDate] = useState('2025-10-23');
@@ -113,6 +113,7 @@ export default function PlannerPage() {
   const [preferredStyleText, setPreferredStyleText] = useState(initialPrompt);
   const [budget, setBudget] = useState(1000000);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (initialPrompt) {
@@ -125,18 +126,56 @@ export default function PlannerPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
 
-    // 💡 폼 데이터를 객체로 묶음
-    const tripData = {
-      origin, destination, startDate, endDate, partySize, preferredStyleText, budget
+    // 1. 목적지 이름 정리 (괄호 제거)
+    const destName = destination.split('(')[0].trim();
+
+    // 2. 백엔드가 원하는 키 이름(snake_case)으로 변환
+    const requestBody = {
+      origin: origin,
+      destination: destName,
+      start_date: startDate, // backend: start_date
+      end_date: endDate,     // backend: end_date
+      party_size: parseInt(partySize), // backend: party_size
+      budget: parseInt(budget),
+      preferred_style_text: preferredStyleText // backend: preferred_style_text
     };
 
-    // 1.5초 딜레이 후 결과 페이지로 이동 (데이터 전달)
-    setTimeout(() => {
-      setLoading(false);
-      // navigate의 두 번째 인자로 state를 넘겨줍니다.
-      navigate('/result', { state: { tripData } });
-    }, 1500);
+    try {
+        // 3. 실제 API 호출
+        const response = await fetch(`${API_BASE_URL}/plan`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              // 토큰이 있다면 헤더에 추가 (선택 사항)
+              // 'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "여행 계획 생성 중 오류가 발생했습니다.");
+        }
+
+        // 4. 성공 시 결과 페이지로 이동 (백엔드 응답 + 입력 정보 전달)
+        navigate('/result', { 
+          state: { 
+            tripData: {
+              ...requestBody, // 입력했던 정보 (기간 계산용)
+              ...data.content // 백엔드에서 만든 계획 (schedule 등)
+            }
+          } 
+        });
+
+    } catch (err) {
+        console.error(err);
+        setError(err.message);
+    } finally {
+        setLoading(false);
+    }
   };
 
   return (
@@ -147,8 +186,8 @@ export default function PlannerPage() {
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <LocationSearchInput label="출발지" icon={<Plane size={20} className="text-gray-400 rotate-[-45deg]" />} value={origin} onChange={setOrigin} placeholder="도시/공항 검색 (예: 인천)" />
-            <LocationSearchInput label="도착지" icon={<MapPinIcon />} value={destination} onChange={setDestination} placeholder="도시 검색 (예: 도쿄)" />
+            <LocationSearchInput label="출발지" icon={<Plane size={20} className="text-gray-400 rotate-[-45deg]" />} value={origin} onChange={setOrigin} placeholder="도시/공항 검색 (예: 인천, ICN)" />
+            <LocationSearchInput label="도착지" icon={<MapPinIcon />} value={destination} onChange={setDestination} placeholder="도시 검색 (예: 도쿄, 오사카)" />
           </div>
 
           <InputGroup label="여행 날짜" icon={<CalendarIcon />}>
@@ -166,9 +205,12 @@ export default function PlannerPage() {
           
           <InputGroup label="여행 스타일" icon={<EditIcon />}><textarea value={preferredStyleText} onChange={(e) => setPreferredStyleText(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none" placeholder="예: 맛집 위주, 휴양지 선호, 빡빡한 일정..." /></InputGroup>
           
+          {/* 에러 메시지 */}
+          {error && <div className="text-red-600 text-center bg-red-50 p-2 rounded font-medium">{error}</div>}
+
           <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 flex justify-center items-center gap-2 shadow-lg transition-transform active:scale-95">
             {loading ? <LoaderIcon /> : <WandIcon />} 
-            <span>{loading ? '여행 계획 생성 중...' : '여행 계획 생성하기'}</span>
+            <span>{loading ? '여행 계획 생성 중... (AI가 생각 중입니다)' : '여행 계획 생성하기'}</span>
           </button>
         </form>
       </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-import Layout from './components/Layout'; // 👈 추가
+import Layout from './components/Layout';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import PlannerPage from './pages/PlannerPage';
@@ -9,12 +9,12 @@ import ResultPage from './pages/ResultPage';
 import SavedTripsPage from './pages/SavedTripsPage';
 import MyPage from './pages/MyPage';
 import EditProfilePage from './pages/EditProfilePage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage'; // 👈 추가
 
 export default function App() {
   return (
     <Router>
       <Routes>
-        {/* 모든 페이지를 Layout으로 감쌉니다 */}
         <Route element={<Layout />}>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -23,6 +23,9 @@ export default function App() {
           <Route path="/saved" element={<SavedTripsPage />} />
           <Route path="/mypage" element={<MyPage />} />
           <Route path="/mypage/edit" element={<EditProfilePage />} />
+          
+          {/* 비밀번호 찾기 라우트 추가 */}
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         </Route>
       </Routes>
     </Router>
