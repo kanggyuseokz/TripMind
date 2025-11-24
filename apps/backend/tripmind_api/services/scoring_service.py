@@ -1,3 +1,5 @@
+# backend/tripmind_api/services/scoring_service.py
+
 class ScoringService:
     """
     여행 경비를 계산하고, 사용자의 선호도에 따라 POI의 점수를 매기는 서비스.
@@ -5,11 +7,37 @@ class ScoringService:
     """
 
     # 목적지별 하루 추정 비용 (1인 기준, KRW)
-    # Mock Data 나중에 API로 교체
+    # 실제 서비스 시에는 DB나 외부 API로 대체 권장
     COST_ESTIMATES_PER_DAY = {
+        # 일본
         "도쿄": {"food": 80000, "transport": 15000, "activity": 30000},
         "오사카": {"food": 70000, "transport": 18000, "activity": 35000},
+        "후쿠오카": {"food": 65000, "transport": 12000, "activity": 20000},
+        "삿포로": {"food": 85000, "transport": 20000, "activity": 40000},
+        "오키나와": {"food": 70000, "transport": 25000, "activity": 30000},
+        
+        # 동남아시아
+        "다낭": {"food": 40000, "transport": 10000, "activity": 20000},
+        "방콕": {"food": 45000, "transport": 10000, "activity": 25000},
+        "세부": {"food": 45000, "transport": 12000, "activity": 30000},
+        "발리": {"food": 50000, "transport": 15000, "activity": 35000},
+        "싱가포르": {"food": 90000, "transport": 20000, "activity": 50000},
+        
+        # 유럽/미주
+        "파리": {"food": 110000, "transport": 30000, "activity": 50000},
+        "런던": {"food": 120000, "transport": 35000, "activity": 55000},
+        "로마": {"food": 90000, "transport": 25000, "activity": 45000},
+        "뉴욕": {"food": 130000, "transport": 30000, "activity": 60000},
+        "LA": {"food": 120000, "transport": 40000, "activity": 50000},
+        "하와이": {"food": 110000, "transport": 40000, "activity": 60000},
+
+        # 국내
+        "서울": {"food": 50000, "transport": 10000, "activity": 20000},
+        "부산": {"food": 55000, "transport": 12000, "activity": 20000},
+        "제주": {"food": 65000, "transport": 30000, "activity": 30000},
         "강릉": {"food": 60000, "transport": 20000, "activity": 25000},
+        
+        # 기본값 (데이터 없는 도시용)
         "default": {"food": 75000, "transport": 15000, "activity": 30000},
     }
 
@@ -19,7 +47,8 @@ class ScoringService:
         hotel_quote: dict | None,
         duration_days: int,
         party_size: int,
-        destination: str
+        destination: str,
+        user_style: str = "default" # 💡 user_style 인자 추가 (기본값 지정)
     ) -> dict:
         """
         여행의 총 경비를 계산합니다.
@@ -29,12 +58,26 @@ class ScoringService:
         flight_cost = flight_quote.get("price_total", 0) if flight_quote else 0
         hotel_cost = hotel_quote.get("priceTotal", 0) if hotel_quote else 0
 
-        # 목적지에 맞는 하루 추정 비용 가져오기
-        estimates = self.COST_ESTIMATES_PER_DAY.get(destination, self.COST_ESTIMATES_PER_DAY["default"])
+        # 목적지에 맞는 하루 추정 비용 가져오기 (부분 일치 검색 지원)
+        estimates = self.COST_ESTIMATES_PER_DAY["default"]
+        for city, cost in self.COST_ESTIMATES_PER_DAY.items():
+            if city in destination: # 예: "오사카/간사이" -> "오사카" 데이터 사용
+                estimates = cost
+                break
         
-        food_cost = estimates["food"] * duration_days * party_size
+        # (선택 사항) user_style에 따라 식비나 액티비티 비용을 조정
+        # 예: "럭셔리"나 "맛집" 위주라면 식비를 좀 더 높게 책정
+        adjusted_food = estimates["food"]
+        adjusted_activity = estimates["activity"]
+
+        if "맛집" in user_style or "식도락" in user_style:
+            adjusted_food *= 1.3
+        if "쇼핑" in user_style:
+            adjusted_activity *= 1.5 # 쇼핑 예산을 액티비티에 포함
+
+        food_cost = adjusted_food * duration_days * party_size
         transport_cost = estimates["transport"] * duration_days * party_size
-        activity_cost = estimates["activity"] * duration_days * party_size
+        activity_cost = adjusted_activity * duration_days * party_size
         
         costs_by_category = {
             "flight": flight_cost,
@@ -70,25 +113,27 @@ class ScoringService:
     def score_poi_candidates(self, poi_list: list[dict], user_style: str) -> list[dict]:
         """
         사용자의 여행 스타일에 따라 POI 목록의 점수를 매기고 정렬합니다.
-        (예: '맛집' 스타일이면 '맛집' 카테고리 POI에 높은 가중치 부여)
         """
-        # 💡 스타일별 가중치를 더 명확하게 정의
         style_weights = {
             "맛집": {"맛집": 1.5, "음식점": 1.5, "카페": 1.2, "관광명소": 1.0},
             "관광": {"관광명소": 1.5, "문화시설": 1.3, "맛집": 0.8, "음식점": 0.8},
             "휴식": {"카페": 1.5, "공원": 1.3, "관광명소": 0.7},
-            "default": {} # 기본 가중치는 모두 1.0
+            "default": {} 
         }
-        weights = style_weights.get(user_style, style_weights["default"])
+        # 텍스트에 포함된 키워드로 스타일 매칭 (간단한 로직)
+        current_weight = style_weights["default"]
+        for key in style_weights:
+            if key in user_style:
+                current_weight = style_weights[key]
+                break
         
         scored_pois = []
         for poi in poi_list:
-            # API가 반환하는 다양한 카테고리 이름에 대응
             category = poi.get("category", "기타")
             rating = poi.get("rating", 3.0)
             
             # 해당 카테고리에 대한 가중치를 가져오고, 없으면 기본값 1.0 사용
-            weight = weights.get(category, 1.0)
+            weight = current_weight.get(category, 1.0)
             
             # 기본 점수 = 평점 * 가중치
             score = rating * weight
@@ -99,4 +144,3 @@ class ScoringService:
             
         # 최종 점수가 높은 순으로 정렬하여 반환
         return sorted(scored_pois, key=lambda x: x['score'], reverse=True)
-

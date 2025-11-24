@@ -63,28 +63,43 @@ class LLMService:
         return response_json['choices'][0]['message']['content']
 
     # --- 💡 1. '하이브리드' 방식을 위한 신규 함수 (흥미 추출) ---
-    def extract_interests(self, style_text: str) -> list[str]:
+    def extract_interests(self, text):
         """
-        사용자가 입력한 '여행 스타일 텍스트'를 기반으로 흥미 키워드 리스트를 추론합니다.
+        사용자 입력 텍스트에서 여행 관심사 키워드 추출
         """
-        system_prompt = self._get_system_prompt('llm_interests_spec.md')
-        
-        # 'parse_conversation'과 달리, 전체 대화가 아닌 'style_text'만 사용합니다.
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": style_text}
-        ]
-        
-        # JSON 형식으로 응답 요청
-        llm_response = self._call_llm(messages, response_format={"type": "json_object"})
-        
+        prompt = f"""
+        Extract travel interest keywords from the text: "{text}"
+        Return ONLY a JSON list of strings. Example: ["food", "history"]
+        Do not include markdown formatting.
+        """
         try:
-            content = llm_response['choices'][0]['message']['content']
-            # LLM이 JSON 문자열(예: '["휴양", "맛집"]')을 반환하면, 이를 파싱하여 리스트로 반환
-            return json.loads(content) 
-        except (json.JSONDecodeError, KeyError, IndexError, TypeError) as e:
-            print(f"LLMService Error (extract_interests): {e}. Falling back to default.")
-            return ["관광"] # 실패 시 기본값 반환
+            result = self._call_model(prompt)
+            # JSON 파싱 시도
+            cleaned_result = result.replace("```json", "").replace("```", "").strip()
+            interests = json.loads(cleaned_result)
+            
+            # 🚨 [수정됨] 딕셔너리 구조(예: {"keywords": [...]})가 올 경우 리스트로 명확히 변환
+            if isinstance(interests, list):
+                return interests
+            elif isinstance(interests, dict):
+                # "keywords" 또는 "interests" 키가 있으면 그 내부 리스트 반환
+                if "keywords" in interests and isinstance(interests["keywords"], list):
+                    return interests["keywords"]
+                if "interests" in interests and isinstance(interests["interests"], list):
+                    return interests["interests"]
+                
+                # 특정 키가 없으면 값들을 평탄화(Flatten)하여 리스트로 만듦
+                flat_list = []
+                for val in interests.values():
+                    if isinstance(val, list):
+                        flat_list.extend(val)
+                    elif isinstance(val, str):
+                        flat_list.append(val)
+                return flat_list if flat_list else ["general"]
+                
+            return ["general"]
+        except:
+            return ["general"]
 
     # --- 💡 2. '하이브리드' 방식을 위한 신규 함수 (국내/해외 추론) ---
     def check_domestic(self, origin: str, destination: str) -> bool:

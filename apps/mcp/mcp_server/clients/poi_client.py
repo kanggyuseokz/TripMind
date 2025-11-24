@@ -1,3 +1,4 @@
+# mcp/mcp_server/clients/poi_client.py
 import httpx
 import asyncio
 from ..config import settings
