@@ -169,3 +169,54 @@ def modify_trip_plan():
     except Exception as e:
         print(f"Modify Error: {e}")
         return jsonify({"error": str(e)}), 500
+    
+# 저장된 여행 목록 조회
+@bp.get("/saved")
+@jwt_required()
+def get_saved_trips():
+    try:
+        user_id = get_jwt_identity()
+        
+        # 최신순으로 정렬하여 조회
+        trips = Trip.query.filter_by(user_id=user_id).order_by(Trip.created_at.desc()).all()
+        
+        saved_list = []
+        for trip in trips:
+            saved_list.append({
+                "id": trip.id,
+                "trip_summary": trip.trip_summary,
+                "destination": trip.destination,
+                "start_date": trip.start_date.strftime('%Y-%m-%d') if trip.start_date else None,
+                "end_date": trip.end_date.strftime('%Y-%m-%d') if trip.end_date else None,
+                "total_cost": trip.total_cost,
+                "head_count": trip.head_count,
+                # 상세 일정 데이터 (JSON)
+                "content": trip.content 
+            })
+            
+        return jsonify(saved_list), 200
+
+    except Exception as e:
+        print(f"Error fetching trips: {e}")
+        return jsonify({"error": "여행 목록을 불러오지 못했습니다."}), 500
+
+# 👇 [NEW] 여행 계획 삭제
+@bp.delete("/saved/<int:trip_id>")
+@jwt_required()
+def delete_trip(trip_id):
+    try:
+        user_id = get_jwt_identity()
+        
+        trip = Trip.query.filter_by(id=trip_id, user_id=user_id).first()
+        
+        if not trip:
+            return jsonify({"error": "여행 정보를 찾을 수 없거나 권한이 없습니다."}), 404
+            
+        db.session.delete(trip)
+        db.session.commit()
+        
+        return jsonify({"message": "삭제되었습니다."}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"삭제 실패: {e}"}), 500
