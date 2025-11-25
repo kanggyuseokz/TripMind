@@ -61,14 +61,12 @@ export default function ResultPage() {
   useEffect(() => {
     if (!tripData) { navigate('/planner'); return; }
 
-    const destName = tripData.destination.split('(')[0].trim() || "여행지";
+    const destName = tripData.destination ? tripData.destination.split('(')[0].trim() : "여행지";
     
-    // 비용 및 인원 안전하게 파싱
     const budget = parseInt(tripData.budget || tripData.per_person_budget || 0, 10);
     const partySize = parseInt(tripData.partySize || tripData.party_size || tripData.head_count || 1, 10);
     const totalCost = tripData.total_cost || (budget * partySize);
 
-    // 날짜 및 기간 텍스트 처리
     let durationStr = tripData.durationText;
     const startDate = tripData.startDate || tripData.start_date;
     const endDate = tripData.endDate || tripData.end_date;
@@ -81,8 +79,31 @@ export default function ResultPage() {
         durationStr = `${diffDays}박 ${diffDays + 1}일`;
     }
 
+    // schedule 데이터 안전 처리
+    let safeSchedule = [];
+    if (Array.isArray(tripData.schedule)) {
+        safeSchedule = tripData.schedule;
+    } else if (tripData.content && Array.isArray(tripData.content.schedule)) {
+        safeSchedule = tripData.content.schedule;
+    }
+
+    // 💡 [수정됨] 항공/숙소 데이터 추출 로직 강화
+    // 백엔드에서 flights, hotels로 보내주는 경우와 mcp_fetched_data 내부에 있는 경우 모두 대응
+    let flights = [];
+    if (tripData.flights && Array.isArray(tripData.flights) && tripData.flights.length > 0) {
+        flights = tripData.flights;
+    } else if (tripData.raw_data?.mcp_fetched_data?.flight_quote) {
+        flights = [tripData.raw_data.mcp_fetched_data.flight_quote];
+    }
+
+    let hotels = [];
+    if (tripData.hotels && Array.isArray(tripData.hotels) && tripData.hotels.length > 0) {
+        hotels = tripData.hotels;
+    } else if (tripData.raw_data?.mcp_fetched_data?.hotel_quote) {
+        hotels = [tripData.raw_data.mcp_fetched_data.hotel_quote];
+    }
+
     setTripPlan({
-      // 1. 저장된 데이터 우선 사용 (tripData에 있는 값이 최우선)
       trip_summary: tripData.trip_summary || `${destName} 여행 계획`,
       total_cost: totalCost,
       per_person_budget: budget,
@@ -90,31 +111,25 @@ export default function ResultPage() {
       endDate: endDate,
       durationText: durationStr || "기간 미정",
       head_count: partySize,
-      
-      // 2. 상세 데이터 복원 (없으면 기본값)
       activity_distribution: tripData.activity_distribution || [
         { name: '관광', value: 40 }, { name: '쇼핑', value: 30 }, { name: '휴식', value: 30 }
       ],
-      flights: tripData.flights || [
-        { id: 1, airline: "Korean Air", flightNo: "KE123", time: "10:00 - 12:30", duration: "2h 30m", price: 450000, type: "직항", image: "https://images.unsplash.com/photo-1436491865332-7a6153217f27?w=800&q=80" }
-      ],
-      hotels: tripData.hotels || [
-        { id: 1, name: `${destName} 힐튼 호텔`, rating: 4.8, price: 250000, image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80", tags: ["5성급", "조식포함", "수영장"], address: "시내 중심가, 역에서 5분" }
-      ],
-      // 3. [핵심] 저장된 스케줄 복원
-      schedule: tripData.schedule || [] 
+      // 추출한 데이터 적용
+      flights: flights,
+      hotels: hotels,
+      schedule: safeSchedule 
     });
   }, [tripData, navigate]);
 
   const handleAiModify = async () => {
     if (!editPrompt.trim()) return;
     setIsModifying(true);
-    // 실제 AI 수정 API 연동 시 여기에 fetch 요청 추가
     setTimeout(() => {
       const newPlan = { ...tripPlan };
-      const { dayIndex, eventIndex } = editingSlot;
-      newPlan.schedule[dayIndex].events[eventIndex].description = `[AI 수정됨] ${editPrompt}`;
-      setTripPlan(newPlan);
+      if (newPlan.schedule[editingSlot.dayIndex] && newPlan.schedule[editingSlot.dayIndex].events[editingSlot.eventIndex]) {
+          newPlan.schedule[editingSlot.dayIndex].events[editingSlot.eventIndex].description = `[AI 수정됨] ${editPrompt}`;
+          setTripPlan(newPlan);
+      }
       setIsModifying(false);
       setEditingSlot(null); 
       setEditPrompt("");
@@ -134,9 +149,9 @@ export default function ResultPage() {
         <div className="absolute bottom-0 left-0 w-full p-8 text-white transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
           <h1 className="text-4xl md:text-5xl font-extrabold mb-3 tracking-tight shadow-sm">{tripPlan.trip_summary}</h1>
           <div className="flex flex-wrap items-baseline gap-3 opacity-90">
-            <p className="text-lg font-medium">총 예상 비용 <span className="font-bold text-2xl text-yellow-300">{tripPlan.total_cost.toLocaleString()} KRW</span></p>
+            <p className="text-lg font-medium">총 예상 비용 <span className="font-bold text-2xl text-yellow-300">{(tripPlan.total_cost || 0).toLocaleString()} KRW</span></p>
             <span className="text-white/60">|</span>
-            <p className="text-sm text-white/80">1인당 {tripPlan.per_person_budget.toLocaleString()} KRW</p>
+            <p className="text-sm text-white/80">1인당 {(tripPlan.per_person_budget || 0).toLocaleString()} KRW</p>
           </div>
         </div>
       </div>
@@ -167,7 +182,7 @@ export default function ResultPage() {
           <div className="space-y-4">
             <OverviewCard title="인원" value={`${tripPlan.head_count}명`} icon={<UsersIcon size={20} />} />
             <OverviewCard title="여행 기간" value={tripPlan.durationText} subValue={`${tripPlan.startDate} ~ ${tripPlan.endDate}`} icon={<CalendarIcon size={20} />} />
-            <OverviewCard title="1인 예산" value={`${tripPlan.per_person_budget.toLocaleString()} KRW`} icon={<WalletIcon size={20} />} />
+            <OverviewCard title="1인 예산" value={`${(tripPlan.per_person_budget || 0).toLocaleString()} KRW`} icon={<WalletIcon size={20} />} />
           </div>
         </div>
 
@@ -214,16 +229,17 @@ export default function ResultPage() {
                 {isEditMode && !editingSlot && <div className="mb-4 p-3 bg-blue-50 text-blue-700 text-sm rounded-lg flex items-center gap-2 animate-in fade-in"><Sparkles size={16} />수정하고 싶은 일정을 클릭하세요. AI가 도와드립니다!</div>}
                 
                 <div className="space-y-8 relative before:absolute before:inset-0 before:left-4 before:top-4 before:w-0.5 before:bg-gray-200 before:h-full">
-                  {tripPlan.schedule && tripPlan.schedule.map((dayPlan, idx) => (
+                  {tripPlan.schedule && tripPlan.schedule.length > 0 ? (
+                    tripPlan.schedule.map((dayPlan, idx) => (
                     <div key={idx} className="relative pl-10">
-                      <div className="absolute left-0 top-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md ring-4 ring-white z-10">{idx + 1}</div>
+                      <div className="absolute left-0 top-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md ring-4 ring-white z-10">{dayPlan.day}</div>
                       <div className="mb-4">
                         <h4 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                            {dayPlan.date} <span className="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{dayPlan.date === "1일차" ? tripPlan.startDate : ""}</span>
+                            {dayPlan.date} <span className="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{dayPlan.full_date || tripPlan.startDate}</span>
                         </h4>
                       </div>
                       <ul className="space-y-3">
-                        {dayPlan.events.map((event, eIdx) => { 
+                        {dayPlan.events && dayPlan.events.map((event, eIdx) => { 
                             const isEditing = editingSlot?.dayIndex === idx && editingSlot?.eventIndex === eIdx; 
                             return (
                                 <li key={eIdx} onClick={() => isEditMode && !isEditing && setEditingSlot({ dayIndex: idx, eventIndex: eIdx })} className={`relative flex items-start bg-gray-50 p-4 rounded-xl border transition-all ${isEditMode && !isEditing ? 'cursor-pointer hover:border-blue-400 hover:shadow-md hover:-translate-y-0.5' : 'border-gray-100'} ${isEditing ? 'border-blue-500 ring-2 ring-blue-100 bg-white shadow-lg z-10' : ''}`}>
@@ -246,7 +262,10 @@ export default function ResultPage() {
                         })}
                       </ul>
                     </div>
-                  ))}
+                  ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-10">일정 정보가 없습니다.</div>
+                  )}
                 </div>
               </div>
             )}
@@ -255,19 +274,23 @@ export default function ResultPage() {
             {activeTab === 'flights' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-blue-800 text-sm mb-4 flex items-center gap-2"><Sparkles size={16} />AI가 분석한 최적의 항공권을 추천해 드립니다.</div>
-                <div className="bg-white rounded-2xl overflow-hidden shadow-md border border-gray-200 group hover:shadow-lg transition-all">
-                    <div className="flex flex-col md:flex-row h-full">
-                        <div className="relative md:w-2/5 h-64 md:h-auto bg-gray-100 flex items-center justify-center overflow-hidden">
-                            <img src={bestFlight.image || "https://images.unsplash.com/photo-1436491865332-7a6153217f27?w=800&q=80"} alt="Flight" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                            <div className="absolute top-3 left-3 bg-black/60 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">BEST CHOICE</div>
-                        </div>
-                        <div className="p-8 flex-1 flex flex-col justify-center">
-                            <div className="flex items-center gap-4 mb-6"><div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 shrink-0 border border-blue-100"><Plane size={28} /></div><div><h4 className="text-2xl font-bold text-gray-900">{bestFlight.airline || '항공사 미정'}</h4><p className="text-gray-500 font-medium">{bestFlight.flightNo || '-'} • {bestFlight.type || '직항'}</p></div></div>
-                            <div className="grid grid-cols-2 gap-6 border-t border-gray-100 pt-6 mb-8"><div><p className="text-sm text-gray-400 mb-1">비행 시간</p><p className="font-bold text-xl text-gray-800">{bestFlight.time || '-'}</p></div><div><p className="text-sm text-gray-400 mb-1">소요 시간</p><p className="font-bold text-xl text-gray-800">{bestFlight.duration || '-'}</p></div></div>
-                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-gray-100"><div><p className="text-xs text-gray-400 mb-1">예상 가격 (1인, 왕복)</p><p className="text-3xl font-extrabold text-blue-600">{(bestFlight.price || 0).toLocaleString()}<span className="text-lg font-medium text-gray-500 ml-1">원</span></p></div><button className="w-full sm:w-auto bg-black text-white px-8 py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2">예매하러 가기 <ArrowRight size={18} /></button></div>
+                {tripPlan.flights && tripPlan.flights.length > 0 ? (
+                    <div className="bg-white rounded-2xl overflow-hidden shadow-md border border-gray-200 group hover:shadow-lg transition-all">
+                        <div className="flex flex-col md:flex-row h-full">
+                            <div className="relative md:w-2/5 h-64 md:h-auto bg-gray-100 flex items-center justify-center overflow-hidden">
+                                <img src={bestFlight.image || "https://images.unsplash.com/photo-1436491865332-7a6153217f27?w=800&q=80"} alt="Flight" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                                <div className="absolute top-3 left-3 bg-black/60 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">BEST CHOICE</div>
+                            </div>
+                            <div className="p-8 flex-1 flex flex-col justify-center">
+                                <div className="flex items-center gap-4 mb-6"><div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 shrink-0 border border-blue-100"><Plane size={28} /></div><div><h4 className="text-2xl font-bold text-gray-900">{bestFlight.airline || '항공사 미정'}</h4><p className="text-gray-500 font-medium">{bestFlight.flightNo || '-'} • {bestFlight.type || '직항'}</p></div></div>
+                                <div className="grid grid-cols-2 gap-6 border-t border-gray-100 pt-6 mb-8"><div><p className="text-sm text-gray-400 mb-1">비행 시간</p><p className="font-bold text-xl text-gray-800">{bestFlight.time || '-'}</p></div><div><p className="text-sm text-gray-400 mb-1">소요 시간</p><p className="font-bold text-xl text-gray-800">{bestFlight.duration || '-'}</p></div></div>
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-gray-100"><div><p className="text-xs text-gray-400 mb-1">예상 가격 (1인, 왕복)</p><p className="text-3xl font-extrabold text-blue-600">{(bestFlight.price || 0).toLocaleString()}<span className="text-lg font-medium text-gray-500 ml-1">원</span></p></div><button className="w-full sm:w-auto bg-black text-white px-8 py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2">예매하러 가기 <ArrowRight size={18} /></button></div>
+                            </div>
                         </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="text-center text-gray-500 py-10">추천 항공권 정보가 없습니다.</div>
+                )}
               </div>
             )}
             
@@ -275,23 +298,27 @@ export default function ResultPage() {
             {activeTab === 'hotels' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-blue-800 text-sm mb-4 flex items-center gap-2"><Sparkles size={16} />여행 스타일에 딱 맞는 최고의 숙소를 추천해 드립니다.</div>
-                <div className="bg-white rounded-2xl overflow-hidden shadow-md border border-gray-200 group hover:shadow-lg transition-all">
-                    <div className="flex flex-col md:flex-row h-full">
-                        <div className="relative md:w-2/5 h-64 md:h-auto overflow-hidden">
-                            <img src={bestHotel.image || "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80"} alt={bestHotel.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                            <div className="absolute top-4 left-4 bg-black/60 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-white flex items-center gap-1">BEST STAY</div>
-                            <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg text-sm font-bold text-yellow-600 flex items-center gap-1 shadow-sm"><Star size={16} fill="currentColor" /> {bestHotel.rating || 4.5}</div>
-                        </div>
-                        <div className="p-8 flex-1 flex flex-col justify-center">
-                            <div className="mb-6">
-                                <div className="flex flex-wrap gap-2 mb-3">{(bestHotel.tags || []).map((tag, i) => (<span key={i} className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-medium border border-blue-100">{tag}</span>))}</div>
-                                <h4 className="text-3xl font-bold text-gray-900 mb-2">{bestHotel.name || '추천 호텔'}</h4>
-                                <p className="text-gray-500 flex items-center gap-1.5"><MapPin size={16} /> {bestHotel.address || '시내 중심가'}</p>
+                {tripPlan.hotels && tripPlan.hotels.length > 0 ? (
+                    <div className="bg-white rounded-2xl overflow-hidden shadow-md border border-gray-200 group hover:shadow-lg transition-all">
+                        <div className="flex flex-col md:flex-row h-full">
+                            <div className="relative md:w-2/5 h-64 md:h-auto overflow-hidden">
+                                <img src={bestHotel.image || "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80"} alt={bestHotel.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                                <div className="absolute top-4 left-4 bg-black/60 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-white flex items-center gap-1">BEST STAY</div>
+                                <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg text-sm font-bold text-yellow-600 flex items-center gap-1 shadow-sm"><Star size={16} fill="currentColor" /> {bestHotel.rating || 4.5}</div>
                             </div>
-                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-gray-100 mt-auto"><div><p className="text-xs text-gray-400 mb-1">1박 기준 (세금 포함)</p><p className="text-3xl font-extrabold text-blue-600">{(bestHotel.price || 0).toLocaleString()}<span className="text-lg font-medium text-gray-500 ml-1">원</span></p></div><button className="w-full sm:w-auto bg-black text-white px-8 py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2">객실 확인하기 <ArrowRight size={18} /></button></div>
+                            <div className="p-8 flex-1 flex flex-col justify-center">
+                                <div className="mb-6">
+                                    <div className="flex flex-wrap gap-2 mb-3">{(bestHotel.tags || []).map((tag, i) => (<span key={i} className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-medium border border-blue-100">{tag}</span>))}</div>
+                                    <h4 className="text-3xl font-bold text-gray-900 mb-2">{bestHotel.name || '추천 호텔'}</h4>
+                                    <p className="text-gray-500 flex items-center gap-1.5"><MapPin size={16} /> {bestHotel.address || '시내 중심가'}</p>
+                                </div>
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-gray-100 mt-auto"><div><p className="text-xs text-gray-400 mb-1">1박 기준 (세금 포함)</p><p className="text-3xl font-extrabold text-blue-600">{(bestHotel.price || 0).toLocaleString()}<span className="text-lg font-medium text-gray-500 ml-1">원</span></p></div><button className="w-full sm:w-auto bg-black text-white px-8 py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2">객실 확인하기 <ArrowRight size={18} /></button></div>
+                            </div>
                         </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="text-center text-gray-500 py-10">추천 숙소 정보가 없습니다.</div>
+                )}
               </div>
             )}
           </div>

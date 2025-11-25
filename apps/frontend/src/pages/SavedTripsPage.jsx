@@ -52,16 +52,26 @@ export default function SavedTripsPage() {
       setLoading(true);
       // 👇 새로 만든 /saved 엔드포인트 호출
       const response = await fetch(`${API_BASE_URL}/saved`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        method: 'GET', 
+        headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
       });
 
-      if (!response.ok) throw new Error("데이터를 불러오는데 실패했습니다.");
+      if (!response.ok) {
+          if (response.status === 422 || response.status === 401) {
+              throw new Error("로그인 세션이 만료되었습니다. 다시 로그인해주세요.");
+          }
+          throw new Error(`데이터 로딩 실패 (${response.status})`);
+      }
 
       const data = await response.json();
-      setSavedTrips(data);
+      
+      setSavedTrips(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
-      setError("여행 정보를 불러오는 중 오류가 발생했습니다.");
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -100,7 +110,6 @@ export default function SavedTripsPage() {
       endDate: trip.end_date,
       partySize: trip.head_count,
       budget: trip.total_cost,
-      // 백엔드에 저장해둔 상세 JSON 내용 (schedule 등 포함)
       ...trip.content 
     };
     
@@ -110,10 +119,7 @@ export default function SavedTripsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="animate-spin text-blue-600" size={32} />
-          <span className="text-gray-500 font-medium">보관함 불러오는 중...</span>
-        </div>
+        <Loader2 className="animate-spin text-blue-600" size={32} />
       </div>
     );
   }
@@ -131,6 +137,7 @@ export default function SavedTripsPage() {
           </button>
         </div>
 
+        {/* Error msg: 디버깅 할때 필요. 디버깅 끝나면 지우기 */}
         {error && <div className="text-center text-red-500 mb-8">{error}</div>}
 
         {savedTrips.length > 0 ? (
