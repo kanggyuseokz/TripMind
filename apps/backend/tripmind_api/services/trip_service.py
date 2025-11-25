@@ -1,6 +1,6 @@
 # backend/tripmind_api/services/trip_service.py
-from datetime import datetime
-import httpx 
+from datetime import datetime, timedelta
+import requests
 
 # TripMind의 모든 전문 서비스를 임포트합니다.
 from .mcp_service import MCPService
@@ -13,18 +13,15 @@ class TripService:
     MCP(데이터 수집) -> Scoring/Map(분석/최적화) -> 최종 결과 생성
     """
     def __init__(self):
-        # 각 서비스의 인스턴스를 생성합니다.
         self.mcp_service = MCPService()
         self.scoring_service = ScoringService()
         self.map_service = MapService()
 
-    # (Flask는 동기 방식이므로 'def' 유지)
     def create_personalized_trip(self, request_data: dict, parsed_data: dict) -> dict:
         """
         LLM이 파싱한 데이터를 기반으로, 실제 여행 계획을 생성하는 메인 메소드입니다.
         """
         try:
-            # --- 💡 1. .get()을 사용하여 안전하게 값 추출 ---
             user_style = request_data.get('preferred_style', '관광')
             start_date_str = parsed_data.get('start_date')
             end_date_str = parsed_data.get('end_date')
@@ -32,83 +29,117 @@ class TripService:
             party_size = parsed_data.get('party_size', 1)
             is_domestic = parsed_data.get("is_domestic", False)
             
-            # 💡 1-B. 필수 값이 없는 경우를 명시적으로 처리 (라우터에서 이미 검사했지만, 이중 방어)
             if not all([start_date_str, end_date_str, destination]):
-                missing = [k for k, v in {"start_date": start_date_str, "end_date": end_date_str, "destination": destination}.items() if not v]
-                raise KeyError(f"필수 필드 누락: {missing}")
-            # -----------------------------------------------
+                raise KeyError("필수 필드 누락")
 
-            # Step 1: MCP 서비스를 호출하여 모든 외부 데이터를 병렬로 수집합니다.
+            # Step 1: MCP 데이터 수집
             mcp_data = self.mcp_service.fetch_all_data(parsed_data, user_style)
-            
             if not mcp_data:
                 raise Exception("MCP service failed to fetch data.")
 
-            # Step 2: 여행 기간(일)을 계산합니다.
+            # Step 2: 여행 기간 계산
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
             trip_duration_days = (end_date - start_date).days + 1
-            trip_duration_nights = (end_date - start_date).days # 박 수 계산
+            trip_duration_nights = (end_date - start_date).days
 
-            # Step 3: Scoring 서비스를 사용하여 총 경비 및 비용 비중을 계산합니다.
+            # Step 3: 비용 계산 (ScoringService 인자 개수 수정됨)
             cost_info = self.scoring_service.calculate_total_cost(
                 mcp_data.get('flight_quote'), 
                 mcp_data.get('hotel_quote'),
                 trip_duration_nights,
                 party_size,
                 destination,
-                user_style
+                user_style # 💡 수정된 ScoringService에 맞춰 인자 전달
             )
+            
             cost_breakdown_chart = self.scoring_service.calculate_cost_breakdown(
                 cost_info.get('costs_by_category', {})
             )
 
-            # Step 4: POI 후보들의 1차 점수(사용자 선호도)를 계산합니다.
+            # Step 4: POI 점수 산정
             scored_pois = self.scoring_service.score_poi_candidates(
                 mcp_data.get('poi_list', []), user_style
             )
             
-            # Step 5: Map Service를 사용하여 동선을 최적화하고 최종 일정을 배치합니다.
+            # Step 5: 일정 최적화 및 배치 (여기가 핵심!)
             final_schedule = self._arrange_schedule_optimized(
-                scored_pois, trip_duration_days, is_domestic
+                scored_pois, start_date, trip_duration_days, is_domestic
             )
-            
-            # Step 6: 모든 데이터를 취합하여 최종 응답 JSON을 구성합니다.
+
+            # Step 6: 최종 결과 반환
             return {
-                "trip_summary": f"{destination}으로의 {trip_duration_nights}박 {trip_duration_days}일 맞춤 여행",
+                "trip_summary": f"{destination} {trip_duration_nights}박 {trip_duration_days}일 여행",
                 "total_cost": cost_info.get('total_cost'),
                 "cost_breakdown_chart": cost_breakdown_chart,
                 "schedule": final_schedule,
-                "raw_data": { # 디버깅 및 프론트엔드 추가 정보 활용용
+                # 결과 페이지 복원용 데이터
+                "destination": destination,
+                "startDate": start_date_str,
+                "endDate": end_date_str,
+                "partySize": party_size,
+                "head_count": party_size,
+                "flights": [mcp_data.get('flight_quote')] if mcp_data.get('flight_quote') else [],
+                "hotels": [mcp_data.get('hotel_quote')] if mcp_data.get('hotel_quote') else [],
+                "raw_data": { 
                     "llm_parsed_request": parsed_data,
                     "mcp_fetched_data": mcp_data
                 }
             }
         
-        except KeyError as e:
-            # parsed_data에 필수 키(start_date, end_date 등)가 없는 경우
-            print(f"KeyError during trip creation: {e}")
-            raise Exception(f"Missing required data field: {e}")
-        except httpx.HTTPStatusError as e:
-            # mcp_service.fetch_all_data 내부에서 발생한 HTTP 오류
-            print(f"HTTPError during MCP fetch: {e}")
-            raise Exception(f"Failed to fetch data from microservice: {e.response.text}")
         except Exception as e:
-            # 그 외 모든 예외
-            print(f"Unexpected error in create_personalized_trip: {e}")
-            raise e # 오류를 상위 라우터로 다시 전달
+            print(f"Error in create_personalized_trip: {e}")
+            raise e
 
-    def _arrange_schedule_optimized(self, scored_pois: list[dict], trip_duration_days: int, is_domestic: bool) -> list[dict]:
-        """점수가 높은 POI들을 기반으로 지리적으로 최적화된 일정을 생성합니다."""
+    def _arrange_schedule_optimized(self, scored_pois: list[dict], start_date: datetime, trip_duration_days: int, is_domestic: bool) -> list[dict]:
+        """점수가 높은 POI들을 기반으로 일정을 생성합니다."""
+        schedule = []
+        
+        # 사용할 POI가 없으면 빈 템플릿이라도 반환
         if not scored_pois:
-            return []
-        
-        # --- 💡 API 호출 제한을 위한 수정 ---
-        # 1. 하루에 방문할 POI 개수를 정의합니다 (예: 4개)
-        pois_per_day = 4
-        # 2. 전체 일정에 필요한 POI 개수만큼만 상위 목록을 자릅니다.
-        total_pois_needed = trip_duration_days * pois_per_day
-        pois_for_schedule = scored_pois[:total_pois_needed]
-        # ---------------------------------
-        
-        # 💡 3. 잘라낸 POI 목록(pois
+            scored_pois = [
+                {"name": "추천 명소", "category": "관광명소"},
+                {"name": "현지 맛집", "category": "맛집"},
+                {"name": "분위기 좋은 카페", "category": "카페"},
+                {"name": "야경 포인트", "category": "관광명소"},
+            ] * trip_duration_days
+
+        # 하루에 배치할 시간대 정의
+        time_slots = [
+            {"slot": "오전", "type": "관광명소", "icon": "home"},
+            {"slot": "점심", "type": "맛집", "icon": "utensils"},
+            {"slot": "오후", "type": "카페", "icon": "coffee"},
+            {"slot": "저녁", "type": "맛집", "icon": "utensils"},
+            {"slot": "밤", "type": "관광명소", "icon": "car"} # 야경 등
+        ]
+
+        poi_index = 0
+        for i in range(trip_duration_days):
+            current_date = start_date + timedelta(days=i)
+            date_str = current_date.strftime('%m월 %d일')
+            day_events = []
+
+            for slot_info in time_slots:
+                # POI 리스트에서 하나씩 꺼내오기 (순환)
+                if poi_index < len(scored_pois):
+                    poi = scored_pois[poi_index]
+                    poi_index += 1
+                else:
+                    # POI가 모자라면 처음부터 다시 순환하거나 기본값 사용
+                    poi = scored_pois[poi_index % len(scored_pois)]
+                    poi_index += 1
+
+                day_events.append({
+                    "time_slot": slot_info["slot"],
+                    "description": f"{poi['name']} ({poi.get('category', '관광')})",
+                    "icon": slot_info["icon"]
+                })
+
+            schedule.append({
+                "day": i + 1,
+                "date": f"{i+1}일차",
+                "full_date": date_str, # 화면 표시용
+                "events": day_events
+            })
+            
+        return schedule

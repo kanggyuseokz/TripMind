@@ -50,10 +50,8 @@ class Config:
     # =================================================================
     # 3. LLM 및 MCP 서버 설정
     # =================================================================
-    # Hugging Face Router 설정
-    HF_TOKEN = os.getenv("HF_TOKEN")
-    HF_BASE_URL = os.getenv("HF_BASE_URL", "https://router.huggingface.co/v1")
-    HF_MODEL = os.getenv("HF_MODEL", "openai/gpt-oss-20b:nebius")
+    # Gemini LLM API
+    GEMINI_API_KEY=os.getenv("GEMINI_API_KEY")
     
     # MCP 서버의 기본 URL (services/mcp_service.py에서 사용)
     MCP_PORT = os.getenv("MCP_PORT", "7000")
