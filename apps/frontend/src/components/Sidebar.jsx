@@ -1,3 +1,4 @@
+// apps/frontend/src/components/Sidebar.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, User, Map, PlusCircle, LogOut, LogIn, Smile } from 'lucide-react';
@@ -5,11 +6,26 @@ import { X, User, Map, PlusCircle, LogOut, LogIn, Smile } from 'lucide-react';
 export default function Sidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // 💡 사용자 정보를 담을 상태 추가
+  const [userInfo, setUserInfo] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
+      // 1. 토큰 확인 (로그인 여부)
       const token = localStorage.getItem('token');
-      setIsLoggedIn(!!token); 
+      setIsLoggedIn(!!token);
+
+      // 2. 사용자 정보 가져오기 (로그인 시 저장해둔 정보)
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          // JSON 문자열을 객체로 변환하여 상태에 저장
+          setUserInfo(JSON.parse(storedUser));
+        } catch (e) {
+          console.error("사용자 정보 파싱 오류:", e);
+          setUserInfo(null);
+        }
+      }
     }
   }, [isOpen]);
 
@@ -19,8 +35,13 @@ export default function Sidebar({ isOpen, onClose }) {
   };
 
   const handleLogout = () => {
+    // 로그아웃 시 토큰과 사용자 정보 모두 삭제
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    
     setIsLoggedIn(false);
+    setUserInfo(null);
+    
     alert("로그아웃 되었습니다.");
     handleNavigate('/login');
   };
@@ -39,10 +60,9 @@ export default function Sidebar({ isOpen, onClose }) {
         onClick={onClose}
       />
 
-      {/* 사이드바 패널 (왼쪽 배치) */}
+      {/* 사이드바 패널 */}
       <div 
         className={`fixed top-0 left-0 h-full w-80 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${
-          /* 💡 isOpen일 때 0(보임), 아니면 -full(왼쪽으로 숨김) */
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -56,17 +76,23 @@ export default function Sidebar({ isOpen, onClose }) {
         <div className="p-4 space-y-2">
           {isLoggedIn ? (
             <>
-              {/* 사용자 프로필 */}
+              {/* 💡 사용자 프로필 (백엔드 데이터 연동됨) */}
               <div 
                 onClick={() => handleNavigate('/mypage')}
                 className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl cursor-pointer hover:bg-blue-100 transition-colors mb-6"
               >
                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-blue-600 font-bold shadow-sm text-lg">
-                  U
+                  {/* 이름의 첫 글자만 따서 프로필 아이콘으로 사용 (없으면 U) */}
+                  {userInfo?.username ? userInfo.username.charAt(0).toUpperCase() : 'U'}
                 </div>
                 <div>
-                  <p className="font-bold text-gray-900">여행자님</p>
-                  <p className="text-xs text-gray-500">traveler@example.com</p>
+                  {/* 실제 사용자 이름과 이메일 표시 */}
+                  <p className="font-bold text-gray-900">
+                    {userInfo?.username || '여행자'}님
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {userInfo?.email || 'traveler@example.com'}
+                  </p>
                 </div>
               </div>
 
@@ -95,10 +121,7 @@ export default function Sidebar({ isOpen, onClose }) {
                   <LogIn size={16} /> 로그인 / 회원가입
                 </button>
               </div>
-              
-              <button onClick={() => handleNavigate('/planner')} className="flex items-center gap-3 w-full p-3 text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors">
-                <PlusCircle size={20} /> 비회원으로 여행 계획하기
-              </button>
+          
             </>
           )}
         </div>

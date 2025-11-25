@@ -1,77 +1,102 @@
-import React, { useState } from 'react';
+// apps/frontend/src/components/Layout.jsx
+import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Plane, ArrowLeft, ShoppingBag, Menu, User } from 'lucide-react';
 import Sidebar from './Sidebar';
+import Header from './Header'; // 💡 분리한 헤더 컴포넌트 import
+
+// 💡 백엔드 API 주소
+const API_BASE_URL = "http://127.0.0.1:8080/api/trip";
 
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const isResultPage = location.pathname === '/result';
   const isLoginPage = location.pathname === '/login';
 
-  // 헤더 우측 버튼 (메뉴 버튼 제거됨)
-  const renderHeaderActions = () => {
-    if (isLoginPage) return null;
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    setIsLoggedIn(!!token);
+  }, [location.pathname]);
 
-    return (
-      <div className="flex items-center gap-3">
-        {isResultPage && (
-          <button 
-            onClick={() => {
-              alert("여행이 보관함에 저장되었습니다!");
-              navigate('/saved');
-            }}
-            className="group flex items-center p-2 text-gray-500 hover:text-white hover:bg-black rounded-full transition-all duration-300 ease-in-out mr-2" 
-            title="저장"
-          >
-            <ShoppingBag size={20} />
-            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-medium">
-              저장하기
-            </span>
-          </button>
-        )}
+  // 저장하기 로직 (Layout에서 관리)
+  const handleSaveTrip = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert("로그인이 필요한 서비스입니다.");
+      navigate('/login');
+      return;
+    }
 
-        <button 
-          onClick={() => navigate('/mypage')}
-          className="hidden md:flex items-center justify-center w-9 h-9 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors"
-          title="마이페이지"
-        >
-          <User size={18} />
-        </button>
-      </div>
-    );
+    const tripData = location.state?.tripData;
+    if (!tripData) {
+      alert("저장할 여행 데이터가 없습니다.");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      
+      const payload = {
+        trip_summary: tripData.trip_summary || `${tripData.destination} 여행`,
+        destination: tripData.destination,
+        startDate: tripData.start_date || tripData.startDate,
+        endDate: tripData.end_date || tripData.endDate,
+        total_cost: tripData.total_cost || tripData.budget,
+        head_count: tripData.party_size || tripData.head_count,
+        schedule: tripData.schedule || [],
+        flights: tripData.flights || [],
+        hotels: tripData.hotels || [],
+        raw_data: tripData.raw_data || {} 
+      };
+
+      const response = await fetch(`${API_BASE_URL}/save`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+          if (response.status === 422 || response.status === 401) {
+              throw new Error("로그인 세션이 만료되었습니다. 다시 로그인해주세요.");
+          }
+          const errData = await response.json();
+          throw new Error(errData.error || "저장에 실패했습니다.");
+      }
+
+      alert("여행이 성공적으로 보관함에 저장되었습니다! 🎉");
+      navigate('/saved');
+
+    } catch (error) {
+      console.error(error);
+      alert(`오류 발생: ${error.message}`);
+      if (error.message.includes("로그인")) {
+          navigate('/login');
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 font-sans text-gray-900">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          
-          {/* 💡 좌측: 메뉴 버튼 + 로고 */}
-          <div className="flex items-center gap-4">
-            {/* 메뉴 버튼: 로그인 페이지가 아닐 때만 표시 */}
-            {!isLoginPage && (
-              <button 
-                onClick={() => setIsSidebarOpen(true)} 
-                className="p-2 -ml-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <Menu size={24} />
-              </button>
-            )}
-
-            <div className="flex ml-3 items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-              <Plane size={24} className="text-blue-600" strokeWidth={2.5} />
-              <span className="text-xl font-bold tracking-tight">TripMind</span>
-            </div>
-          </div>
-
-          {/* 우측: 액션 버튼들 */}
-          {renderHeaderActions()}
-        </div>
-      </header>
+      {/* 💡 분리된 헤더 컴포넌트 사용 */}
+      <Header 
+        isLoginPage={isLoginPage}
+        isLoggedIn={isLoggedIn}
+        isResultPage={isResultPage}
+        isSaving={isSaving}
+        onOpenSidebar={() => setIsSidebarOpen(true)}
+        onNavigate={navigate}
+        onSaveTrip={handleSaveTrip}
+      />
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
