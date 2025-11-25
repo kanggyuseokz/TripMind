@@ -14,7 +14,7 @@ const WandIcon = () => <Wand size={20} />;
 const WalletIcon = () => <Wallet size={20} />;
 const EditIcon = () => <Edit size={20} />;
 
-// 💡 백엔드 API 주소 (포트 8080)
+// 💡 백엔드 API 주소
 const API_BASE_URL = "http://127.0.0.1:8080/api/trip";
 
 const POPULAR_LOCATIONS = [
@@ -105,10 +105,21 @@ export default function PlannerPage() {
   const location = useLocation();
   const initialPrompt = location.state?.initialPrompt || '';
 
+  // 💡 [UX 개선] 오늘 날짜 구하기 유틸리티
+  const getTodayString = () => new Date().toISOString().split('T')[0];
+  const getFutureDateString = (days) => {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return date.toISOString().split('T')[0];
+  };
+
   const [origin, setOrigin] = useState('서울/인천 (ICN)');
   const [destination, setDestination] = useState('');
-  const [startDate, setStartDate] = useState('2025-10-23');
-  const [endDate, setEndDate] = useState('2025-10-26');
+  
+  // 💡 기본값을 오늘 ~ 3일 뒤로 설정
+  const [startDate, setStartDate] = useState(getTodayString());
+  const [endDate, setEndDate] = useState(getFutureDateString(3));
+  
   const [partySize, setPartySize] = useState(2);
   const [preferredStyleText, setPreferredStyleText] = useState(initialPrompt);
   const [budget, setBudget] = useState(1000000);
@@ -128,28 +139,23 @@ export default function PlannerPage() {
     setLoading(true);
     setError('');
 
-    // 1. 목적지 이름 정리 (괄호 제거)
     const destName = destination.split('(')[0].trim();
 
-    // 2. 백엔드가 원하는 키 이름(snake_case)으로 변환
     const requestBody = {
       origin: origin,
       destination: destName,
-      start_date: startDate, // backend: start_date
-      end_date: endDate,     // backend: end_date
-      party_size: parseInt(partySize), // backend: party_size
+      start_date: startDate,
+      end_date: endDate,
+      party_size: parseInt(partySize),
       budget: parseInt(budget),
-      preferred_style_text: preferredStyleText // backend: preferred_style_text
+      preferred_style_text: preferredStyleText
     };
 
     try {
-        // 3. 실제 API 호출
         const response = await fetch(`${API_BASE_URL}/plan`, {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
-              // 토큰이 있다면 헤더에 추가 (선택 사항)
-              // 'Authorization': `Bearer ${localStorage.getItem('token')}`
             },
             body: JSON.stringify(requestBody)
         });
@@ -160,12 +166,11 @@ export default function PlannerPage() {
             throw new Error(data.error || "여행 계획 생성 중 오류가 발생했습니다.");
         }
 
-        // 4. 성공 시 결과 페이지로 이동 (백엔드 응답 + 입력 정보 전달)
         navigate('/result', { 
           state: { 
             tripData: {
-              ...requestBody, // 입력했던 정보 (기간 계산용)
-              ...data.content // 백엔드에서 만든 계획 (schedule 등)
+              ...requestBody,
+              ...data.content
             }
           } 
         });
@@ -192,20 +197,31 @@ export default function PlannerPage() {
 
           <InputGroup label="여행 날짜" icon={<CalendarIcon />}>
             <div className="flex items-center space-x-2 w-full pl-10">
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+              <input 
+                type="date" 
+                value={startDate} 
+                min={getTodayString()} // 과거 날짜 선택 방지
+                onChange={(e) => setStartDate(e.target.value)} 
+                className="w-full py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+              />
               <span className="text-gray-500">-</span>
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+              <input 
+                type="date" 
+                value={endDate} 
+                min={startDate} // 시작 날짜보다 이전 날짜 선택 방지
+                onChange={(e) => setEndDate(e.target.value)} 
+                className="w-full py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+              />
             </div>
           </InputGroup>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputGroup label="인원" icon={<UsersIcon />}><input type="number" value={partySize} onChange={(e) => setPartySize(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" /></InputGroup>
-            <InputGroup label="1인 예산 (원)" icon={<WalletIcon />}><input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" /></InputGroup>
+            <InputGroup label="인원" icon={<UsersIcon />}><input type="number" value={partySize} min={1} onChange={(e) => setPartySize(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" /></InputGroup>
+            <InputGroup label="1인 예산 (원)" icon={<WalletIcon />}><input type="number" value={budget} min={0} step={10000} onChange={(e) => setBudget(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" /></InputGroup>
           </div>
           
           <InputGroup label="여행 스타일" icon={<EditIcon />}><textarea value={preferredStyleText} onChange={(e) => setPreferredStyleText(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none" placeholder="예: 맛집 위주, 휴양지 선호, 빡빡한 일정..." /></InputGroup>
           
-          {/* 에러 메시지 */}
           {error && <div className="text-red-600 text-center bg-red-50 p-2 rounded font-medium">{error}</div>}
 
           <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 flex justify-center items-center gap-2 shadow-lg transition-transform active:scale-95">
