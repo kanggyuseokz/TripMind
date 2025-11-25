@@ -25,14 +25,11 @@ def create_app():
 
     # 4. 라우터(Blueprint) 등록
     # 💡 map_route를 포함하여 모든 라우터를 import 합니다.
-    # (파일이 존재하지 않는 모듈은 import에서 제외해야 합니다)
     from .routes import trip_route, llm_route, auth_route, map_route
     
     app.register_blueprint(trip_route.bp, url_prefix="/api/trip")
     app.register_blueprint(llm_route.bp, url_prefix="/api/llm")
     app.register_blueprint(auth_route.bp, url_prefix="/api/auth")
-    
-    # 💡 [추가됨] 지도 관련 API 등록
     app.register_blueprint(map_route.bp, url_prefix="/api/map")
 
     # 5. DB 테이블 생성
