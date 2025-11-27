@@ -1,4 +1,3 @@
-// apps/frontend/src/pages/ResultPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Plane, Calendar, Users, Wallet, MapPin, ShoppingBag, Coffee, Car, Utensils, Home, Clock, Loader2, Edit2, Sparkles, Check, XCircle, Star, BedDouble, ArrowRight } from 'lucide-react';
@@ -87,20 +86,33 @@ export default function ResultPage() {
         safeSchedule = tripData.content.schedule;
     }
 
-    // 💡 [수정됨] 항공/숙소 데이터 추출 로직 강화
-    // 백엔드에서 flights, hotels로 보내주는 경우와 mcp_fetched_data 내부에 있는 경우 모두 대응
+    // 💡 [수정됨] 항공/숙소 데이터 추출 로직 강화 (mcp_service.py 호환)
     let flights = [];
-    if (tripData.flights && Array.isArray(tripData.flights) && tripData.flights.length > 0) {
-        flights = tripData.flights;
-    } else if (tripData.raw_data?.mcp_fetched_data?.flight_quote) {
+    // 1. mcp_fetched_data 안에 flight_quote가 있는 경우 (최신 백엔드 구조)
+    if (tripData.raw_data?.mcp_fetched_data?.flight_quote && Object.keys(tripData.raw_data.mcp_fetched_data.flight_quote).length > 0) {
         flights = [tripData.raw_data.mcp_fetched_data.flight_quote];
+    } 
+    // 2. 루트에 flight_quote가 있는 경우
+    else if (tripData.flight_quote && Object.keys(tripData.flight_quote).length > 0) {
+        flights = [tripData.flight_quote];
+    }
+    // 3. 기존 배열 구조 호환
+    else if (Array.isArray(tripData.flights) && tripData.flights.length > 0) {
+        flights = tripData.flights;
     }
 
     let hotels = [];
-    if (tripData.hotels && Array.isArray(tripData.hotels) && tripData.hotels.length > 0) {
+    // 1. mcp_fetched_data 안에 hotel_quote 배열이 있는 경우 (최신 백엔드 구조)
+    if (tripData.raw_data?.mcp_fetched_data?.hotel_quote && Array.isArray(tripData.raw_data.mcp_fetched_data.hotel_quote)) {
+        hotels = tripData.raw_data.mcp_fetched_data.hotel_quote;
+    }
+    // 2. 루트에 hotel_quote 배열이 있는 경우
+    else if (tripData.hotel_quote && Array.isArray(tripData.hotel_quote)) {
+        hotels = tripData.hotel_quote;
+    }
+    // 3. 기존 배열 구조 호환
+    else if (Array.isArray(tripData.hotels)) {
         hotels = tripData.hotels;
-    } else if (tripData.raw_data?.mcp_fetched_data?.hotel_quote) {
-        hotels = [tripData.raw_data.mcp_fetched_data.hotel_quote];
     }
 
     setTripPlan({
@@ -282,9 +294,9 @@ export default function ResultPage() {
                                 <div className="absolute top-3 left-3 bg-black/60 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">BEST CHOICE</div>
                             </div>
                             <div className="p-8 flex-1 flex flex-col justify-center">
-                                <div className="flex items-center gap-4 mb-6"><div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 shrink-0 border border-blue-100"><Plane size={28} /></div><div><h4 className="text-2xl font-bold text-gray-900">{bestFlight.airline || '항공사 미정'}</h4><p className="text-gray-500 font-medium">{bestFlight.flightNo || '-'} • {bestFlight.type || '직항'}</p></div></div>
+                                <div className="flex items-center gap-4 mb-6"><div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 shrink-0 border border-blue-100"><Plane size={28} /></div><div><h4 className="text-2xl font-bold text-gray-900">{bestFlight.airline || '항공사 정보 없음'}</h4><p className="text-gray-500 font-medium">{bestFlight.route || '-'}</p></div></div>
                                 <div className="grid grid-cols-2 gap-6 border-t border-gray-100 pt-6 mb-8"><div><p className="text-sm text-gray-400 mb-1">비행 시간</p><p className="font-bold text-xl text-gray-800">{bestFlight.time || '-'}</p></div><div><p className="text-sm text-gray-400 mb-1">소요 시간</p><p className="font-bold text-xl text-gray-800">{bestFlight.duration || '-'}</p></div></div>
-                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-gray-100"><div><p className="text-xs text-gray-400 mb-1">예상 가격 (1인, 왕복)</p><p className="text-3xl font-extrabold text-blue-600">{(bestFlight.price || 0).toLocaleString()}<span className="text-lg font-medium text-gray-500 ml-1">원</span></p></div><button className="w-full sm:w-auto bg-black text-white px-8 py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2">예매하러 가기 <ArrowRight size={18} /></button></div>
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-gray-100"><div><p className="text-xs text-gray-400 mb-1">예상 가격 (1인, 왕복)</p><p className="text-3xl font-extrabold text-blue-600">{(bestFlight.price_total || bestFlight.price || 0).toLocaleString()}<span className="text-lg font-medium text-gray-500 ml-1">원</span></p></div><button className="w-full sm:w-auto bg-black text-white px-8 py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2" onClick={() => bestFlight.deeplink_url && window.open(bestFlight.deeplink_url, '_blank')}>예매하러 가기 <ArrowRight size={18} /></button></div>
                             </div>
                         </div>
                     </div>
@@ -310,7 +322,7 @@ export default function ResultPage() {
                                 <div className="mb-6">
                                     <div className="flex flex-wrap gap-2 mb-3">{(bestHotel.tags || []).map((tag, i) => (<span key={i} className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-medium border border-blue-100">{tag}</span>))}</div>
                                     <h4 className="text-3xl font-bold text-gray-900 mb-2">{bestHotel.name || '추천 호텔'}</h4>
-                                    <p className="text-gray-500 flex items-center gap-1.5"><MapPin size={16} /> {bestHotel.address || '시내 중심가'}</p>
+                                    <p className="text-gray-500 flex items-center gap-1.5"><MapPin size={16} /> {bestHotel.location || bestHotel.address || '시내 중심가'}</p>
                                 </div>
                                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-gray-100 mt-auto"><div><p className="text-xs text-gray-400 mb-1">1박 기준 (세금 포함)</p><p className="text-3xl font-extrabold text-blue-600">{(bestHotel.price || 0).toLocaleString()}<span className="text-lg font-medium text-gray-500 ml-1">원</span></p></div><button className="w-full sm:w-auto bg-black text-white px-8 py-3.5 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg flex items-center justify-center gap-2">객실 확인하기 <ArrowRight size={18} /></button></div>
                             </div>

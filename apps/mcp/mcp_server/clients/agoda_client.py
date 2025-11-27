@@ -7,93 +7,107 @@ class AgodaClientError(Exception):
     """Agoda API 클라이언트 관련 에러 정의"""
     pass
 
+# 🚀 [핵심] 주요 도시 매핑 데이터
+# 한글 도시명이 들어오면 API가 알아들을 수 있는 영어 이름이나 IATA 코드로 즉시 변환합니다.
+CITY_MAPPING = {
+    # 일본
+    "도쿄": {"iata": "TYO", "en": "Tokyo"},
+    "오사카": {"iata": "OSA", "en": "Osaka"},
+    "후쿠오카": {"iata": "FUK", "en": "Fukuoka"},
+    "삿포로": {"iata": "SPK", "en": "Sapporo"},
+    "오키나와": {"iata": "OKA", "en": "Okinawa"},
+    "교토": {"iata": "UKY", "en": "Kyoto"}, 
+    
+    # 한국
+    "서울": {"iata": "SEL", "en": "Seoul"},
+    "인천": {"iata": "ICN", "en": "Incheon"},
+    "김포": {"iata": "GMP", "en": "Gimpo"},
+    "부산": {"iata": "PUS", "en": "Busan"},
+    "제주": {"iata": "CJU", "en": "Jeju"},
+    
+    # 동남아/기타
+    "방콕": {"iata": "BKK", "en": "Bangkok"},
+    "다낭": {"iata": "DAD", "en": "Da Nang"},
+    "나트랑": {"iata": "CXR", "en": "Nha Trang"},
+    "싱가포르": {"iata": "SIN", "en": "Singapore"},
+    "홍콩": {"iata": "HKG", "en": "Hong Kong"},
+    "타이베이": {"iata": "TPE", "en": "Taipei"},
+    
+    # 유럽/미주
+    "파리": {"iata": "PAR", "en": "Paris"},
+    "런던": {"iata": "LON", "en": "London"},
+    "로마": {"iata": "ROM", "en": "Rome"},
+    "뉴욕": {"iata": "NYC", "en": "New York"},
+    "로스앤젤레스": {"iata": "LAX", "en": "Los Angeles"},
+}
+
 class AgodaClient:
     """
-    RapidAPI Agoda API 통합 클라이언트 (Final Version)
-    - IATA 코드가 발견되면 API 조회를 건너뛰고 즉시 사용합니다.
+    RapidAPI Agoda API 통합 클라이언트 (Real Data Fetcher)
     """
 
     def __init__(self):
         self.base_url = settings.RAPID_BASE
         self.api_key = settings.RAPID_API_KEY
         self.host = settings.RAPID_HOST
-        
-        # 설정 로드 확인용 로그
-        masked_key = f"{self.api_key[:4]}****" if self.api_key else "None"
-        print(f"[AgodaClient] Init - Host: {self.host}, Key: {masked_key}")
-
         self.headers = {
             "X-RapidAPI-Key": self.api_key,
             "X-RapidAPI-Host": self.host
         }
 
     def _sanitize_query(self, query: str) -> str:
-        """
-        검색어 정제: '오사카/간사이' -> '오사카'
-        """
-        if not query:
-            return ""
+        if not query: return ""
         query = re.sub(r'\([^)]*\)', '', query) # 괄호 제거
         query = re.split(r'[/,]', query)[0]     # 슬래시 앞부분만 사용
         return query.strip()
+
+    def _get_mapped_info(self, city_name: str):
+        """매핑된 도시 정보가 있는지 확인합니다."""
+        sanitized_name = self._sanitize_query(city_name)
+        # 1. 한글 이름 직접 매칭 (예: "오사카")
+        if sanitized_name in CITY_MAPPING:
+            return CITY_MAPPING[sanitized_name]
+        # 2. 매핑 키에 포함된 경우 (예: "오사카시" -> "오사카")
+        for key, val in CITY_MAPPING.items():
+            if key in sanitized_name:
+                return val
+        return None
 
     # ==========================================
     # [Flight] 항공권 관련 메서드
     # ==========================================
 
     async def _get_iata_code(self, client: httpx.AsyncClient, city_name: str) -> str | None:
-        if not city_name:
-            return None
+        if not city_name: return None
 
-        # 🚀 [핵심 수정] 입력값에 IATA 코드(3글자 대문자)가 있으면 바로 사용!
-        # API 호출 없이 즉시 리턴하므로 'No IATA code found' 에러가 날 틈이 없습니다.
+        # 1. IATA 코드 직접 입력 시 (예: ICN)
         iata_match = re.search(r'\b([A-Z]{3})\b', city_name)
         if iata_match:
-            code = iata_match.group(1)
-            print(f"[AgodaClient] ⚡ Using extracted IATA Code directly: '{city_name}' -> '{code}'")
-            return code
+            return iata_match.group(1)
 
-        # 코드가 없으면 정제 후 API 검색 (기존 로직)
+        # 2. 매핑 데이터 사용 (가장 확실한 방법)
+        mapped = self._get_mapped_info(city_name)
+        if mapped:
+            print(f"[AgodaClient] ✈️ Mapped IATA Code: '{city_name}' -> '{mapped['iata']}'")
+            return mapped["iata"]
+
+        # 3. API 검색 (Fallback)
         search_query = self._sanitize_query(city_name)
-        print(f"[AgodaClient] 🔍 Searching IATA Code for: '{search_query}'...")
-        
         url = f"{self.base_url}/flights/auto-complete"
         params = {"query": search_query}
         
         try:
             response = await client.get(url, headers=self.headers, params=params)
-            if response.status_code != 200:
-                print(f"[AgodaClient] IATA Fetch Failed! Status: {response.status_code}")
-                return None
-                
-            result = response.json()
-            data_list = result.get("data", [])
+            if response.status_code != 200: return None
+            data_list = response.json().get("data", [])
             
-            if isinstance(data_list, list) and len(data_list) > 0:
-                first_match = data_list[0]
-                
-                # tripLocations -> code
-                trip_locs = first_match.get("tripLocations")
-                if trip_locs:
-                    if isinstance(trip_locs, list) and len(trip_locs) > 0:
-                        return trip_locs[0].get("code")
-                    elif isinstance(trip_locs, dict):
-                        return trip_locs.get("code")
-                
-                # code fallback
-                if first_match.get("code"):
-                    return first_match.get("code")
-
-                # airports fallback
-                airports = first_match.get("airports")
-                if airports and isinstance(airports, list) and len(airports) > 0:
-                    return airports[0].get("code")
-            
-            print(f"[AgodaClient] No IATA code found for {search_query}")
+            if data_list:
+                first = data_list[0]
+                if first.get("tripLocations"): return first["tripLocations"][0].get("code")
+                if first.get("code"): return first.get("code")
+                if first.get("airports"): return first["airports"][0].get("code")
             return None
-            
-        except Exception as e:
-            print(f"[AgodaClient] Error in _get_iata_code: {e}")
+        except:
             return None
 
     async def search_flights(self, origin: str, destination: str, start_date: date, end_date: date, pax: int = 1):
@@ -104,7 +118,7 @@ class AgodaClient:
             dest_code = await self._get_iata_code(client, destination)
 
             if not origin_code or not dest_code:
-                print(f"[AgodaClient] ❌ Missing Codes! Origin: {origin_code}, Dest: {dest_code}")
+                print(f"[AgodaClient] ❌ Missing Flight Codes: {origin_code} -> {dest_code}")
                 return [] 
 
             url = f"{self.base_url}/flights/search-roundtrip"
@@ -123,43 +137,33 @@ class AgodaClient:
 
             try:
                 response = await client.get(url, headers=self.headers, params=params)
-                if response.status_code != 200:
-                    print(f"[AgodaClient] Flight Search Failed! Status: {response.status_code}")
-                    return []
+                if response.status_code != 200: return []
 
-                search_result = response.json()
-                data = search_result.get("data", {})
+                data = response.json().get("data", {})
+                results = data.get("bundles", [])
                 
-                if data and data.get("bundles"):
-                    results = data.get("bundles", [])
-                    print(f"[AgodaClient] ✅ Flight Search Success! Found {len(results)} bundles.")
-                    
-                    if not results:
-                        return []
+                if not results: return []
 
-                    top_flight = results[0]
-                    itinerary = top_flight.get("itineraries", [{}])[0]
-                    itinerary_info = itinerary.get("itineraryInfo", {})
-                    
-                    price_data_currency = itinerary_info.get("price", {})
-                    currency_code = next(iter(price_data_currency), "KRW").upper()
-                    price_data_display = price_data_currency.get(currency_code.lower(), {}).get("display", {})
-                    price_total_info = price_data_display.get("perBook", {}).get("allInclusive")
-                    
-                    return [{
-                        "id": itinerary_info.get("id"),
-                        "vendor": "Agoda Flights", 
-                        "airline": "추천 항공편", 
-                        "route": f"{origin} - {destination}",
-                        "price_total": price_total_info, 
-                        "currency": currency_code,
-                        "deeplink_url": None 
-                    }]
-                else:
-                    return []
-
+                # 최저가 항공권 추출
+                top_flight = results[0]
+                itinerary = top_flight.get("itineraries", [{}])[0]
+                itinerary_info = itinerary.get("itineraryInfo", {})
+                
+                price_info = itinerary_info.get("price", {})
+                currency = next(iter(price_info), "KRW").upper()
+                price_val = price_info.get(currency.lower(), {}).get("display", {}).get("perBook", {}).get("allInclusive")
+                
+                return [{
+                    "id": itinerary_info.get("id"),
+                    "vendor": "Agoda Flights", 
+                    "airline": "추천 항공편", 
+                    "route": f"{origin} - {destination}",
+                    "price_total": price_val, 
+                    "currency": currency,
+                    "deeplink_url": None 
+                }]
             except Exception as e:
-                print(f"[AgodaClient] Exception in search_flights: {e}")
+                print(f"[AgodaClient] Flight Search Error: {e}")
                 return []
 
     # ==========================================
@@ -167,49 +171,40 @@ class AgodaClient:
     # ==========================================
 
     async def _get_city_id(self, client: httpx.AsyncClient, query: str) -> str | None:
-        # 호텔은 City ID(숫자)가 필요하므로 검색이 필수입니다.
-        # "오사카/간사이" -> "오사카"로 정제해서 검색
-        search_query = self._sanitize_query(query)
-        print(f"[AgodaClient] 🏨 Fetching City ID for: '{query}' -> '{search_query}'")
+        # 1. 매핑된 영어 이름 사용 (호텔 검색은 영어 도시명이 훨씬 정확함)
+        mapped = self._get_mapped_info(query)
+        search_query = mapped["en"] if mapped else self._sanitize_query(query)
+        
+        print(f"[AgodaClient] 🏨 Search City ID for: '{search_query}'")
         
         url = f"{self.base_url}/hotels/auto-complete"
         params = {"query": search_query, "language": "ko-kr"}
         
         try:
             response = await client.get(url, headers=self.headers, params=params)
-            if response.status_code != 200:
-                print(f"[AgodaClient] City ID Fetch Failed! Status: {response.status_code}")
-                return None
-                
-            result = response.json()
-            data_list = result.get("data", [])
+            if response.status_code != 200: return None
+            data_list = response.json().get("data", [])
             
-            if not data_list:
-                return None
+            if not data_list: return None
 
             for item in data_list:
+                # 'city' 타입의 ID를 우선적으로 찾음
                 if item.get("type", "").lower() == "city" and item.get("id"):
-                    cid = str(item.get("id"))
-                    print(f"[AgodaClient] ✅ Found City ID: {cid}")
-                    return cid
+                    return str(item.get("id"))
             
             if data_list[0].get("id"):
-                cid = str(data_list[0].get("id"))
-                return cid
+                return str(data_list[0].get("id"))
             return None
-            
-        except Exception as e:
-            print(f"[AgodaClient] Error in _get_city_id: {e}")
+        except:
             return None
 
     async def search_hotels(self, destination: str, start_date: date, end_date: date, pax: int = 2):
-        print(f"[AgodaClient] search_hotels called: {destination}")
+        print(f"[AgodaClient] 🏨 search_hotels called: {destination}")
         
         async with httpx.AsyncClient(timeout=60.0) as client:
             city_id = await self._get_city_id(client, destination)
-            
-            if not city_id:
-                print(f"[AgodaClient] City ID not found for: {destination}")
+            if not city_id: 
+                print(f"[AgodaClient] ❌ City ID not found for hotel: {destination}")
                 return []
 
             url = f"{self.base_url}/hotels/search"
@@ -227,17 +222,10 @@ class AgodaClient:
 
             try:
                 response = await client.get(url, headers=self.headers, params=params)
-                if response.status_code != 200:
-                    return []
+                if response.status_code != 200: return []
                     
-                search_result = response.json()
-                data = search_result.get("data", {})
-                hotels = data.get("hotels", [])
-                
-                print(f"[AgodaClient] ✅ Found {len(hotels)} hotels.")
-                
-                if not hotels:
-                    return []
+                hotels = response.json().get("data", {}).get("hotels", [])
+                if not hotels: return []
 
                 parsed_hotels = []
                 for hotel in hotels:
@@ -252,15 +240,13 @@ class AgodaClient:
                         "image": hotel.get("image"),
                         "has_details": True
                     })
-                    
                 return parsed_hotels
-
             except Exception as e:
-                print(f"[AgodaClient] Exception in search_hotels: {e}")
+                print(f"[AgodaClient] Hotel Search Error: {e}")
                 return []
 
     async def get_hotel_details(self, hotel_id: str, start_date: date, end_date: date, pax: int = 2):
-        # 기존 로직 유지
+        # 상세 조회 로직 (생략 없이 유지)
         url = f"{self.base_url}/hotels/details"
         params = {
             "hotelId": hotel_id,
@@ -275,8 +261,7 @@ class AgodaClient:
             try:
                 response = await client.get(url, headers=self.headers, params=params)
                 if response.status_code != 200: return None
-                result = response.json()
-                data = result.get("data", {})
+                data = response.json().get("data", {})
                 
                 raw_images = data.get("images", [])
                 processed_images = []
