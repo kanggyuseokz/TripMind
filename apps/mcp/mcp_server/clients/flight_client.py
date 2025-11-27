@@ -1,7 +1,5 @@
 import httpx
 from datetime import date
-# pprint는 더 이상 사용하지 않으므로 임포트 제거
-# import pprint
 from ..config import settings
 
 class FlightClientError(Exception):
@@ -9,140 +7,145 @@ class FlightClientError(Exception):
     pass
 
 class FlightClient:
-    """RapidAPI의 Agoda API (Worldwide Hotels)를 사용하여 항공권 데이터를 가져오는 클라이언트"""
+    """
+    RapidAPI Agoda API를 통해 항공권 데이터를 가져오는 클라이언트
+    API 문서: /flights/search-roundtrip 및 /flights/auto-complete 명세 기반
+    """
 
     def __init__(self):
         self.base_url = settings.RAPID_BASE
         self.headers = {
             "X-RapidAPI-Key": settings.RAPID_API_KEY,
-            "X-RapidAPI-Host": settings.RAPID_HOST # RAPID_HOST -> BOOKING_RAPID_HOST 로 수정 (설정값 일치 확인 필요)
+            "X-RapidAPI-Host": settings.RAPID_HOST
         }
 
     async def _get_iata_code(self, client: httpx.AsyncClient, city_name: str) -> str | None:
-        """도시 이름을 기반으로 항공에서 사용하는 IATA 공항 코드를 찾습니다."""
+        """
+        도시 이름을 기반으로 Agoda API에서 IATA 공항/도시 코드를 찾습니다.
+        Retrieval Path: /flights/auto-complete
+        Path 1: data -> tripLocations -> code
+        Path 2: data -> airports -> nearByAirports -> tripLocations -> code
+        """
         url = f"{self.base_url}/flights/auto-complete"
-        params = {"query": city_name, "language": "ko-kr"}
+        params = {"query": city_name}
+        
         try:
             response = await client.get(url, headers=self.headers, params=params)
             response.raise_for_status()
             result = response.json()
+            
+            data_list = result.get("data", [])
+            
+            if isinstance(data_list, list) and len(data_list) > 0:
+                first_match = data_list[0]
+                
+                # Path 1: data -> tripLocations -> code
+                # tripLocations가 리스트인 경우와 딕셔너리인 경우를 모두 방어적으로 처리
+                trip_locs = first_match.get("tripLocations")
+                if trip_locs:
+                    if isinstance(trip_locs, list) and len(trip_locs) > 0:
+                        return trip_locs[0].get("code")
+                    elif isinstance(trip_locs, dict):
+                        return trip_locs.get("code")
+                
+                # Path 2: 기존 로직 유지 (fallback) - data -> code
+                if first_match.get("code"):
+                    return first_match.get("code")
 
-            # --- 💡 디버깅 코드 제거 ---
-            # print(f"\n--- [DEBUG] Agoda Flights 'auto-complete' API 응답 (Query: {city_name}) ---")
-            # pprint.pprint(result)
-            # print("-----------------------------------------------------------------")
-            # --------------------------
-
-            # 실제 응답 데이터 구조에 맞춰 IATA 코드를 정확히 추출합니다.
-            if result and result.get("data"):
-                data_list = result["data"]
-                # 데이터가 비어있지 않고 리스트 형태인지 확인
-                if data_list and isinstance(data_list, list):
-                    # 첫 번째 항목에서 코드 추출 시도 (없으면 None 반환)
-                    return data_list[0].get("code")
-        except httpx.HTTPStatusError as e:
-            # 에러 발생 시 로그는 남기는 것이 좋습니다. (print -> 로깅 시스템으로 변경 고려)
-            print(f"Error fetching IATA code for '{city_name}': {e} - Response: {e.response.text}")
+                # Path 3: data -> airports -> nearByAirports ... (명세에 언급됨)
+                # 복잡하므로 airports 리스트의 첫 번째 코드 사용 시도
+                airports = first_match.get("airports")
+                if airports and isinstance(airports, list) and len(airports) > 0:
+                    return airports[0].get("code")
+            
             return None
-        # 정상 처리되었으나 코드를 찾지 못한 경우
-        return None
+            
+        except httpx.HTTPStatusError as e:
+            print(f"Error fetching IATA code for '{city_name}': {e}")
+            return None
+        except Exception as e:
+            print(f"Unexpected error in IATA fetch: {e}")
+            return None
 
     async def search_flights(self, origin: str, destination: str, start_date: date, end_date: date, pax: int):
         """
-        주어진 조건으로 왕복 항공권을 검색하고, 가장 적합한 추천 항공권 하나를 반환합니다.
+        왕복 항공권을 검색하고 결과를 반환합니다.
+        Endpoint: /flights/search-roundtrip
         """
         async with httpx.AsyncClient(timeout=60.0) as client:
+            # 1. IATA 코드 조회
             origin_code = await self._get_iata_code(client, origin)
             dest_code = await self._get_iata_code(client, destination)
 
             if not origin_code or not dest_code:
-                raise FlightClientError(f"Could not find IATA code for '{origin}' or '{destination}'")
+                print(f"IATA code not found: {origin}({origin_code}) -> {destination}({dest_code})")
+                return [] 
 
+            # 2. 항공권 검색
             url = f"{self.base_url}/flights/search-roundtrip"
 
-            # API 서버가 요구하는 정확한 파라미터 이름으로 변경합니다.
+            # 명세에 따른 파라미터 구성
             params = {
-                "origin": origin_code,
-                "destination": dest_code,
-                "departureDate": start_date.isoformat(),
-                "returnDate": end_date.isoformat(),
-                "adults": str(pax),
-                "currency": "KRW",
-                "countryCode": "KR", # country_code -> countryCode (API 문서 재확인 필요)
-                "language": "ko-kr",
-                "sort": "Best"
+                "origin": origin_code,          # Required
+                "destination": dest_code,       # Required
+                "departureDate": start_date.isoformat(), # Required: YYYY-MM-DD
+                "returnDate": end_date.isoformat(),      # Required: YYYY-MM-DD
+                "adults": str(pax),             # Optional: Default 1
+                "currency": "KRW",              # Optional: Default USD
+                "language": "ko-kr",            # Optional: Default en-us
+                "sort": "Best",                 # Optional: Default Best
+                "limit": "20",                  # Optional: Default 20
+                "page": "1"                     # Optional: Default 1
             }
 
             try:
+                # 참고: 명세에 따르면 'meta->isCompleted=false'인 경우 폴링이 필요할 수 있으나,
+                # 기본 요청으로 1차 시도합니다.
                 response = await client.get(url, headers=self.headers, params=params)
                 response.raise_for_status()
                 search_result = response.json()
 
-                # --- 💡 디버깅 코드 제거 ---
-                # print("\n--- [DEBUG] Agoda Flights 'search-roundtrip' API 응답 (depth=3) ---")
-                # pprint.pprint(search_result, depth=3)
-                # print("---------------------------------------------------------")
-                # print("\n--- [DEBUG] 'search-roundtrip' data.bundles[0]의 전체 구조 ---")
-                # try:
-                #     first_bundle = search_result.get("data", {}).get("bundles", [])[0]
-                #     pprint.pprint(first_bundle)
-                # except (IndexError, TypeError):
-                #     print("ERROR: data.bundles[0]를 찾을 수 없습니다. 응답 구조를 확인하세요.")
-                # print("----------------------------------------------------------------")
-                # --------------------------
-
-                # API 응답 구조에 맞게 데이터 추출
                 data = search_result.get("data", {})
+                
+                # 결과 파싱
                 if data and data.get("bundles"):
                     results = data.get("bundles", [])
                     if not results:
-                        return [] # 검색 결과가 없으면 빈 리스트 반환
+                        return []
 
-                    top_flight = results[0] # 가장 첫 번째 결과(bundle) 사용
-
-                    # data.bundles[0].itineraries[0].itineraryInfo 경로에서 데이터 추출
-                    # itineraries 리스트가 비어있을 경우를 대비하여 기본값 {} 제공
+                    # 첫 번째 결과(Best flight) 선택
+                    top_flight = results[0]
                     itinerary = top_flight.get("itineraries", [{}])[0]
                     itinerary_info = itinerary.get("itineraryInfo", {})
 
                     # 가격 정보 추출
                     price_data_currency = itinerary_info.get("price", {})
-                    # 통화 코드는 price 객체의 키 (예: 'krw')
+                    # 응답에 포함된 통화 코드를 동적으로 찾거나 기본값 KRW 사용
                     currency_code = next(iter(price_data_currency), "KRW").upper()
+                    
                     price_data_display = price_data_currency.get(currency_code.lower(), {}).get("display", {})
 
-                    # 1인당 가격
-                    price_data_avg_pax = price_data_display.get("averagePerPax", {})
-                    price_per_person_info = price_data_avg_pax.get("allInclusive")
-
-                    # 총 가격
-                    price_data_per_book = price_data_display.get("perBook", {})
-                    price_total_info = price_data_per_book.get("allInclusive")
-
-                    # ID 추출
-                    flight_id = itinerary_info.get("id")
-
-                    # Deeplink URL (API 응답에 없으므로 None)
-                    deeplink_url = None
-
-                    # 결과 반환 (딕셔너리 리스트 형태)
+                    # 총 가격 (모든 승객 포함)
+                    price_total_info = price_data_display.get("perBook", {}).get("allInclusive")
+                    
+                    # 결과 반환용 객체 생성
                     return [{
-                        "id": flight_id,
-                        "vendor": "Agoda Flights",
+                        "id": itinerary_info.get("id"),
+                        "vendor": "Agoda Flights", 
+                        "airline": "추천 항공편", 
                         "route": f"{origin} - {destination}",
-                        "price_per_person": price_per_person_info,
-                        "price_total": price_total_info,
+                        "price_total": price_total_info, 
                         "currency": currency_code,
-                        "deeplink_url": deeplink_url
+                        # 딥링크 URL이 API 응답에 명확치 않으므로 검색 결과 ID 포함
+                        "deeplink_url": None 
                     }]
                 else:
-                    # 데이터 구조가 예상과 다르거나 bundles가 없는 경우
+                    # 데이터가 없거나 아직 로딩 중일 수 있음 (meta check 생략)
                     return []
 
             except httpx.HTTPStatusError as e:
-                # API 호출 자체가 실패한 경우 에러 발생
-                raise FlightClientError(f"Failed to search flights: {e.response.text}")
-            except (KeyError, IndexError, TypeError, StopIteration) as e: # StopIteration 추가 (next(iter(...)) 대비)
-                # 응답 데이터 파싱 중 에러 발생 시
-                raise FlightClientError(f"Failed to parse flight search response: {e}")
-
+                print(f"Flight Search API Error: {e.response.text}")
+                raise FlightClientError(f"Failed to search flights: {e}")
+            except (KeyError, IndexError, TypeError, StopIteration) as e:
+                print(f"Flight Parse Error: {e}")
+                return []
