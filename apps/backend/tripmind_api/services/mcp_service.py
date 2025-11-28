@@ -1,5 +1,5 @@
 # backend/tripmind_api/services/mcp_service.py
-import httpx  # 👈 httpx를 바로 사용 (AsyncClient 아님)
+import httpx
 from ..config import settings
 
 class MCPService:

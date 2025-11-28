@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Plane, Calendar, Users, Wallet, MapPin, ShoppingBag, Coffee, Car, Utensils, Home, ArrowRight, Check, Star, ChevronRight } from 'lucide-react';
 
 // [UI 컴포넌트] 진행 단계 표시줄 (Wizard Steps)
@@ -61,32 +60,39 @@ export default function ResultPage() {
 
     console.log("🔍 [DEBUG] RAW tripData:", tripData);
 
+    // 🚀 [수정됨] 데이터 우선순위 변경: MCP에서 가져온 데이터를 최우선으로 사용
+    // tripData(전체)에서 찾으면 LLM raw 데이터를 먼저 찾을 위험이 있으므로,
+    // mcp_fetched_data 내부를 먼저 타겟팅합니다.
     const mcpSource = tripData.raw_data?.mcp_fetched_data || tripData.mcp_fetched_data || tripData;
     
-    // 1. 항공권 리스트
+    // 1. 항공권 리스트 (MCP 데이터 우선 탐색)
     let flights = findDataKey(mcpSource, 'flight_candidates');
     if (!flights || flights.length === 0) {
         const quote = findDataKey(mcpSource, 'flight_quote');
         if (quote && Object.keys(quote).length > 0) flights = [quote];
-        else flights = findDataKey(tripData, 'flights') || [];
+        else flights = findDataKey(tripData, 'flights') || []; // Fallback to root
     }
     console.log("✈️ [DEBUG] Extracted Flights:", flights);
     setFlightList(flights || []);
 
-    // 2. 호텔 리스트
+    // 2. 호텔 리스트 (MCP 데이터 우선 탐색)
     let hotels = findDataKey(mcpSource, 'hotel_candidates');
     if (!hotels || hotels.length === 0) {
         hotels = findDataKey(mcpSource, 'hotel_quote');
-        if (!hotels || hotels.length === 0) hotels = findDataKey(tripData, 'hotels') || [];
+        if (!hotels || hotels.length === 0) hotels = findDataKey(tripData, 'hotels') || []; // Fallback to root
     }
     console.log("🏨 [DEBUG] Extracted Hotels:", hotels);
     setHotelList(hotels || []);
 
-    // 3. 일정
+    // 3. 일정 (Schedule) - 여기가 문제였음
+    // mcpSource에서 schedule을 먼저 찾아야 'Enriched(맛집 포함)' 일정을 가져옵니다.
     let schedule = findDataKey(mcpSource, 'schedule');
+    
+    // MCP에 스케줄이 없으면(에러 등), 그때 LLM raw 스케줄을 사용 (Fallback)
     if (!schedule || schedule.length === 0) {
         console.warn("⚠️ [DEBUG] MCP 스케줄 없음. LLM 기본 스케줄 사용.");
         schedule = findDataKey(tripData, 'schedule');
+        // 더 깊숙한 곳 확인
         if (!schedule) {
              const llm = findDataKey(tripData, 'llm_parsed_data');
              if (llm && llm.schedule) schedule = llm.schedule;
@@ -94,27 +100,21 @@ export default function ResultPage() {
     }
     console.log("📅 [DEBUG] Final Schedule Data:", schedule);
 
-    // 메타 정보
+    // 메타 정보 찾기
     const dest = findDataKey(tripData, 'destination') || "여행지";
     const startDate = findDataKey(tripData, 'start_date') || tripData.startDate;
     const endDate = findDataKey(tripData, 'end_date') || tripData.endDate;
+    
     const dates = findDataKey(tripData, 'dates');
     const finalStart = dates?.start || startDate;
     const finalEnd = dates?.end || endDate;
-
-    // 인원 수
-    const pax = findDataKey(tripData, 'pax') || findDataKey(tripData, 'travelers') || findDataKey(tripData, 'head_count') || findDataKey(tripData, 'party_size') || 2;
-
-    // 예산
-    const budget = findDataKey(tripData, 'total_cost') || findDataKey(tripData, 'budget') || 1000000;
 
     setFinalPlan({
         destination: dest,
         schedule: schedule || [],
         startDate: finalStart,
         endDate: finalEnd,
-        total_cost: budget,
-        pax: pax
+        total_cost: tripData.total_cost || 0
     });
 
   }, [tripData, navigate]);
@@ -123,7 +123,7 @@ export default function ResultPage() {
   const handleSelectFlight = (flight) => {
     console.log("✅ Selected Flight:", flight);
     setSelectedFlight(flight);
-    setCurrentStep(1);
+    setCurrentStep(1); // 호텔 선택 단계로 이동
     window.scrollTo(0, 0);
   };
 
@@ -131,19 +131,12 @@ export default function ResultPage() {
   const handleSelectHotel = (hotel) => {
     console.log("✅ Selected Hotel:", hotel);
     setSelectedHotel(hotel);
-    setCurrentStep(2);
+    setCurrentStep(2); // 결과 페이지로 이동
     window.scrollTo(0, 0);
   };
 
   // 가격 포맷팅
   const formatPrice = (price) => (price ? Number(price).toLocaleString() : '0');
-
-  // 활동 비율 데이터
-  const activityData = [
-    { name: '관광', value: 40, color: '#6366F1' },
-    { name: '쇼핑', value: 30, color: '#A855F7' },
-    { name: '휴식', value: 30, color: '#EC4899' }
-  ];
 
   // ------------------------------------------------------------------
   // [렌더링] Step 1: 항공권 선택 화면
@@ -154,9 +147,10 @@ export default function ResultPage() {
         <StepIndicator currentStep={0} />
         <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">🛫 최적의 항공권을 선택해주세요</h2>
         
+        {/* 디버깅용: 데이터가 비어있을 때 원시 데이터 확인용 버튼 (개발 중에만 보임) */}
         {flightList.length === 0 && (
             <div className="mb-4 p-4 bg-yellow-50 text-yellow-800 text-xs rounded overflow-auto max-h-40">
-                <p className="font-bold">⚠️ 데이터가 비어있습니다. Console을 확인하세요.</p>
+                <p className="font-bold">⚠️ 데이터가 비어있습니다. Console을 확인하세요. (tripData dump below)</p>
                 <pre>{JSON.stringify(tripData, null, 2)}</pre>
             </div>
         )}
@@ -239,189 +233,85 @@ export default function ResultPage() {
   }
 
   // ------------------------------------------------------------------
-  // [렌더링] Step 3: 최종 결과 화면 (새 UI)
+  // [렌더링] Step 3: 최종 결과 화면 (기존 ResultPage UI 재사용)
   // ------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* 헤더 */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {finalPlan?.destination} 여행 계획
-          </h1>
-          <p className="text-gray-600">
-            {finalPlan?.startDate} ~ {finalPlan?.endDate}
-          </p>
+    <div className="w-full max-w-7xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden animate-fade-in relative pb-12 my-8">
+      {/* 상단 배너 */}
+      <div className="relative h-80 bg-cover bg-center" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=1920&q=80)' }}>
+        <div className="absolute inset-0 bg-black/40"></div>
+        <div className="absolute bottom-8 left-8 text-white">
+          <h1 className="text-4xl font-extrabold mb-2">{finalPlan?.destination} 여행 계획</h1>
+          <p className="text-lg opacity-90">{finalPlan?.startDate} ~ {finalPlan?.endDate}</p>
         </div>
+      </div>
 
-        {/* 메인 컨텐츠: 2열 그리드 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* 왼쪽 사이드바 */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* 활동 비율 카드 */}
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900 mb-6">활동 비율</h2>
-              
-              {/* 도넛 차트 */}
-              <div className="relative mb-6">
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={activityData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={90}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {activityData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                
-                {/* 중앙 텍스트 */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <div className="text-4xl font-bold text-gray-900">100%</div>
-                  <div className="text-sm text-gray-500">완료</div>
-                </div>
-              </div>
-
-              {/* 범례 */}
-              <div className="space-y-3">
-                {activityData.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span className="text-sm text-gray-700">{item.name}</span>
-                    </div>
-                    <span className="text-sm font-bold text-gray-900">{item.value}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 인원 카드 */}
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Users className="text-blue-600" size={24} />
-                </div>
+      <div className="p-8">
+        <div className="mb-10">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">선택하신 예약 정보</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 선택한 항공권 카드 */}
+            <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
+              <h3 className="font-bold text-blue-800 mb-4 flex items-center gap-2"><Plane size={20}/> 선택한 항공권</h3>
+              {selectedFlight ? (
                 <div>
-                  <div className="text-sm text-gray-500">인원</div>
-                  <div className="text-2xl font-bold text-gray-900">{finalPlan?.pax || 2}명</div>
-                </div>
-              </div>
-            </div>
-
-            {/* 여행 기간 카드 */}
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-purple-50 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Calendar className="text-purple-600" size={24} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm text-gray-500">여행 기간</div>
-                  <div className="text-lg font-bold text-gray-900">
-                    {(() => {
-                      if (!finalPlan?.startDate || !finalPlan?.endDate) return '정보 없음';
-                      const start = new Date(finalPlan.startDate);
-                      const end = new Date(finalPlan.endDate);
-                      const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-                      return `${days - 1}박 ${days}일`;
-                    })()}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1 truncate">
-                    {finalPlan?.startDate} ~ {finalPlan?.endDate}
+                  <p className="text-xl font-bold text-gray-900 mb-1">{selectedFlight.airline}</p>
+                  <p className="text-gray-600 mb-4">{selectedFlight.route}</p>
+                  <div className="flex justify-between items-end">
+                    <p className="text-sm text-gray-500">{selectedFlight.departure_time?.split('T')[1].slice(0,5)} 출발</p>
+                    <p className="text-2xl font-bold text-blue-600">{formatPrice(selectedFlight.price || selectedFlight.price_total)}원</p>
                   </div>
                 </div>
-              </div>
+              ) : <p className="text-gray-500">선택 안 함</p>}
             </div>
 
-            {/* 1인 예산 카드 */}
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Wallet className="text-green-600" size={24} />
-                </div>
+            {/* 선택한 호텔 카드 */}
+            <div className="bg-orange-50 p-6 rounded-xl border border-orange-100">
+              <h3 className="font-bold text-orange-800 mb-4 flex items-center gap-2"><Home size={20}/> 선택한 숙소</h3>
+              {selectedHotel ? (
                 <div>
-                  <div className="text-sm text-gray-500">1인 예산</div>
-                  <div className="text-xl font-bold text-gray-900">
-                    {Math.floor((finalPlan?.total_cost || 1000000) / (finalPlan?.pax || 2)).toLocaleString()} KRW
+                  <p className="text-xl font-bold text-gray-900 mb-1">{selectedHotel.name}</p>
+                  <p className="text-gray-600 mb-4 flex items-center gap-1"><Star size={14} className="text-yellow-500" fill="currentColor"/> {selectedHotel.rating}</p>
+                  <div className="flex justify-between items-end">
+                    <p className="text-sm text-gray-500">{selectedHotel.location}</p>
+                    <p className="text-2xl font-bold text-orange-600">{formatPrice(selectedHotel.price)}원</p>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 오른쪽: 일정표 */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 border border-gray-100">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900">일정표</h2>
-              </div>
-
-              {/* 탭 */}
-              <div className="flex gap-6 border-b border-gray-200 mb-6 overflow-x-auto">
-                <button className="pb-3 px-1 border-b-2 border-blue-600 text-blue-600 font-medium whitespace-nowrap">
-                  상세 일정
-                </button>
-                <button className="pb-3 px-1 text-gray-500 hover:text-gray-700 transition-colors whitespace-nowrap">
-                  항공권 추천
-                </button>
-                <button className="pb-3 px-1 text-gray-500 hover:text-gray-700 transition-colors whitespace-nowrap">
-                  숙소 추천
-                </button>
-              </div>
-
-              {/* 일정 타임라인 */}
-              {(!finalPlan?.schedule || finalPlan.schedule.length === 0) ? (
-                <div className="p-8 bg-red-50 text-red-600 rounded-xl border border-red-200">
-                  <p className="font-bold">⚠️ 일정 데이터가 없습니다.</p>
-                  <p className="text-sm mt-1">콘솔 로그를 확인해주세요.</p>
-                </div>
-              ) : (
-                <div className="space-y-8">
-                  {finalPlan.schedule.map((day, idx) => (
-                    <div key={idx} className="relative pl-8 border-l-2 border-blue-200">
-                      <div className="absolute -left-4 top-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
-                        {day.day}
-                      </div>
-
-                      <div className="mb-4">
-                        <div className="text-lg font-bold text-gray-900">{day.day}일차</div>
-                        <div className="text-sm text-gray-500">{day.date}</div>
-                      </div>
-
-                      <div className="space-y-3">
-                        {day.events?.map((event, eIdx) => (
-                          <div key={eIdx} className="bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors">
-                            <div className="flex gap-4">
-                              <div className="flex-shrink-0">
-                                {event.time_slot === '오전' && <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center text-xl">☀️</div>}
-                                {event.time_slot === '점심' && <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center text-xl">🍽️</div>}
-                                {event.time_slot === '오후' && <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-xl">☕</div>}
-                                {event.time_slot === '저녁' && <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-xl">🌙</div>}
-                              </div>
-
-                              <div className="flex-1 min-w-0">
-                                <div className="font-bold text-gray-700 text-sm mb-1">{event.time_slot}</div>
-                                <div className="font-bold text-gray-900">{event.place_name || event.description}</div>
-                                {event.place_name && <div className="text-sm text-gray-500 mt-1">{event.description}</div>}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              ) : <p className="text-gray-500">선택 안 함</p>}
             </div>
           </div>
         </div>
+
+        {/* 일정표 */}
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">상세 일정표</h2>
+        
+        {/* [디버깅] 화면에 데이터가 없는 경우 메시지 출력 */}
+        {(!finalPlan?.schedule || finalPlan.schedule.length === 0) ? (
+            <div className="p-8 bg-red-50 text-red-600 rounded-xl border border-red-200">
+                <p className="font-bold">⚠️ 일정 데이터가 없습니다.</p>
+                <p className="text-sm mt-1">콘솔 로그([DEBUG])를 확인해주세요. 백엔드에서 schedule 키가 누락되었을 수 있습니다.</p>
+            </div>
+        ) : (
+            <div className="space-y-8 border-l-2 border-gray-200 pl-8 ml-4">
+            {finalPlan.schedule.map((day, idx) => (
+                <div key={idx} className="relative">
+                <div className="absolute -left-[41px] top-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md ring-4 ring-white">{day.day}</div>
+                <h3 className="text-lg font-bold text-gray-900 mb-4">{day.date}</h3>
+                <div className="space-y-4">
+                    {day.events?.map((event, eIdx) => (
+                    <div key={eIdx} className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex gap-4">
+                        <div className="font-bold text-gray-700 w-16 shrink-0">{event.time_slot}</div>
+                        <div>
+                        <p className="font-bold text-gray-900">{event.place_name || event.description}</p>
+                        {event.place_name && <p className="text-sm text-gray-500 mt-1">{event.description}</p>}
+                        </div>
+                    </div>
+                    ))}
+                </div>
+                </div>
+            ))}
+            </div>
+        )}
       </div>
     </div>
   );
