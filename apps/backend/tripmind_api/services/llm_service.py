@@ -34,7 +34,7 @@ class LLMService:
             raise LLMServiceError("GEMINI_API_KEY not found in app config or environment variables.")
             
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-pro')
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
         return self.model
 
     def _get_system_prompt(self, spec_file_name: str) -> str:

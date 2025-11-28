@@ -47,7 +47,7 @@ def handle_plan_request():
             "is_domestic": is_domestic,
             "interests": interests,
             "budget_per_person": {
-                "amount": (budget / party_size) if party_size > 0 else budget,
+                "amount": budget,
                 "currency": "KRW"
             }
         }

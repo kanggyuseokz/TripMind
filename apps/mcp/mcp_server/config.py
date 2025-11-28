@@ -10,11 +10,14 @@ class Settings:
     # Weather API (OpenWeatherMap)
     OWM_API_KEY: str = os.getenv("OWM_API_KEY")
 
+    # LLM Model APIs
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY")
+
     # Map APIs
     GOOGLE_MAP_API_KEY: str = os.getenv("GOOGLE_MAP_API_KEY")
     KAKAO_REST_API_KEY: str = os.getenv("KAKAO_REST_API_KEY")
     
-    # Booking API (RapidAPI)
+    # (RapidAPI)
     RAPID_API_KEY: str = os.getenv("RAPID_API_KEY")
     RAPID_HOST: str = os.getenv("RAPID_HOST")
     RAPID_BASE: str = os.getenv("RAPID_BASE")
