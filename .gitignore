@@ -12,6 +12,7 @@ instance/*
 __pycache__/
 *.py[cod]
 *$py.class
+apps/mcp/test/
 
 # C extensions
 *.so
