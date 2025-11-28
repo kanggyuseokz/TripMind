@@ -419,4 +419,4 @@ class AgodaClient:
                     "longitude": data.get("longitude")
                 }
             except:
-                return None
+                return None 
