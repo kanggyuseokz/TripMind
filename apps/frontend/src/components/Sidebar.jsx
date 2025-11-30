@@ -2,24 +2,21 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, User, Map, PlusCircle, LogOut, LogIn, Smile } from 'lucide-react';
+import ProfileImage from './ProfileImage';
 
 export default function Sidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  // 💡 사용자 정보를 담을 상태 추가
   const [userInfo, setUserInfo] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
-      // 1. 토큰 확인 (로그인 여부)
       const token = localStorage.getItem('token');
       setIsLoggedIn(!!token);
 
-      // 2. 사용자 정보 가져오기 (로그인 시 저장해둔 정보)
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
         try {
-          // JSON 문자열을 객체로 변환하여 상태에 저장
           setUserInfo(JSON.parse(storedUser));
         } catch (e) {
           console.error("사용자 정보 파싱 오류:", e);
@@ -35,7 +32,6 @@ export default function Sidebar({ isOpen, onClose }) {
   };
 
   const handleLogout = () => {
-    // 로그아웃 시 토큰과 사용자 정보 모두 삭제
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     
@@ -76,17 +72,19 @@ export default function Sidebar({ isOpen, onClose }) {
         <div className="p-4 space-y-2">
           {isLoggedIn ? (
             <>
-              {/* 💡 사용자 프로필 (백엔드 데이터 연동됨) */}
+              {/* ✅ ProfileImage 컴포넌트 사용 */}
               <div 
                 onClick={() => handleNavigate('/mypage')}
                 className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl cursor-pointer hover:bg-blue-100 transition-colors mb-6"
               >
-                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-blue-600 font-bold shadow-sm text-lg">
-                  {/* 이름의 첫 글자만 따서 프로필 아이콘으로 사용 (없으면 U) */}
-                  {userInfo?.username ? userInfo.username.charAt(0).toUpperCase() : 'U'}
-                </div>
+                <ProfileImage 
+                  imageUrl={userInfo?.profile_image} 
+                  username={userInfo?.username}
+                  size="md"
+                  className="shadow-sm"
+                />
+
                 <div>
-                  {/* 실제 사용자 이름과 이메일 표시 */}
                   <p className="font-bold text-gray-900">
                     {userInfo?.username || '여행자'}님
                   </p>
@@ -121,7 +119,6 @@ export default function Sidebar({ isOpen, onClose }) {
                   <LogIn size={16} /> 로그인 / 회원가입
                 </button>
               </div>
-          
             </>
           )}
         </div>

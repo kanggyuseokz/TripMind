@@ -2,11 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Settings, LogOut, Plane, ChevronRight, MapPin, Calendar, Mail, Loader2 } from 'lucide-react';
+import ProfileImage from '../components/ProfileImage';
 
-// 💡 백엔드 API 주소
 const API_BASE_URL = "http://127.0.0.1:8080/api/trip";
+const AUTH_API_URL = "http://127.0.0.1:8080/api/auth";
 
-// 도시별 이미지 매핑 (SavedTripsPage와 동일하게 사용)
 const getCityImage = (destination) => {
   if (!destination) return 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80';
   const keyword = destination.split('/')[0].split('(')[0].trim();
@@ -30,7 +30,6 @@ const getCityImage = (destination) => {
 export default function MyPage() {
   const navigate = useNavigate();
   
-  // 상태 관리
   const [user, setUser] = useState(null);
   const [recentTrip, setRecentTrip] = useState(null);
   const [tripCount, setTripCount] = useState(0);
@@ -43,19 +42,38 @@ export default function MyPage() {
       return;
     }
 
-    // 1. 로컬 스토리지에서 사용자 정보 가져오기
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("User parse error", e);
-      }
-    }
-
-    // 2. 백엔드에서 저장된 여행 목록 가져오기 (최신순)
+    fetchUserProfile(token);
     fetchUserTrips(token);
   }, [navigate]);
+
+  const fetchUserProfile = async (token) => {
+    try {
+      const response = await fetch(`${AUTH_API_URL}/profile`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const profileData = await response.json();
+        setUser(profileData);
+        localStorage.setItem('user', JSON.stringify(profileData));
+      } else if (response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login');
+      }
+    } catch (error) {
+      console.error("Failed to fetch profile:", error);
+      
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch (e) {
+          console.error("User parse error", e);
+        }
+      }
+    }
+  };
 
   const fetchUserTrips = async (token) => {
     try {
@@ -68,7 +86,6 @@ export default function MyPage() {
         const trips = await response.json();
         if (Array.isArray(trips)) {
           setTripCount(trips.length);
-          // 여행이 있다면 가장 첫 번째(최신) 여행을 recentTrip으로 설정
           if (trips.length > 0) {
             setRecentTrip(trips[0]);
           }
@@ -101,11 +118,15 @@ export default function MyPage() {
       <main className="max-w-3xl mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">마이페이지</h1>
         
-        {/* 사용자 프로필 카드 */}
+        {/* ✅ ProfileImage 컴포넌트 사용 */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6 flex items-center gap-5">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-md">
-            {user?.username ? user.username.charAt(0).toUpperCase() : 'U'}
-          </div>
+          <ProfileImage 
+            imageUrl={user?.profile_image} 
+            username={user?.username}
+            size="lg"
+            className="shadow-md"
+          />
+
           <div className="flex-1">
             <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
               {user?.username || '여행자'}님
@@ -116,7 +137,6 @@ export default function MyPage() {
             <div className="flex items-center gap-1 text-gray-500 text-sm mt-1">
               <Mail size={14} /> {user?.email || '이메일 없음'}
             </div>
-            {/* 가입일은 DB에 있지만 현재 로컬스토리지 user 객체에는 없을 수 있음 (옵션) */}
             <p className="text-xs text-gray-400 mt-2">TripMind 회원</p>
           </div>
           <button onClick={() => navigate('/mypage/edit')} className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-lg font-medium transition-colors">
