@@ -1,8 +1,9 @@
 # backend/tripmind_api/__init__.py
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 from .config import settings
 from .extensions import db, migrate, jwt, cors
+import os
 
 def create_app():
     """
@@ -40,5 +41,10 @@ def create_app():
     @app.route("/health")
     def health_check():
         return {"status": "ok", "message": "TripMind backend is running"}
-
+    
+    @app.route('/static/<path:filename>')
+    def serve_static(filename):
+        static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
+        return send_from_directory(static_dir, filename)
+    
     return app
