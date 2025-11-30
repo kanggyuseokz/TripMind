@@ -36,7 +36,7 @@ class AuthService:
         # 2. 비밀번호 검증
         if user and check_password_hash(user.password_hash, password):
             # 3. JWT 토큰 생성
-            access_token = create_access_token(identity=user.id) 
+            access_token = create_access_token(identity=str(user.id)) 
             
             # 💡 [개선] 프론트엔드에서 활용하기 쉽도록 사용자 상세 정보를 함께 반환
             return {
