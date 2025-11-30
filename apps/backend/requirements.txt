@@ -15,3 +15,5 @@ python-dotenv
 openai
 SQLAlchemy
 cryptography
+
+google-generativeai
