@@ -15,6 +15,8 @@ class User(db.Model):
     
     trips = db.relationship("Trip", back_populates="user", cascade="all, delete-orphan")
 
+    profile_image = db.Column(db.String(255), nullable=True)
+
     def __repr__(self):
         return f'<User {self.username}>'
 
