@@ -63,24 +63,110 @@ class LLMService:
         except Exception as e:
             raise LLMServiceError(f"Gemini API Call Failed: {e}")
 
-    # --- 💡 1. '하이브리드' 방식을 위한 신규 함수 (흥미 추출) ---
-    def extract_interests(self, text):
+    # --- ✅ [NEW] 사용자 요청 전체 파싱 ---
+    def parse_user_request(self, user_request: str) -> dict:
         """
-        사용자 입력 텍스트에서 여행 관심사 키워드 추출
-        """
-        prompt = f"""
-        Extract travel interest keywords from the text: "{text}"
-        Return ONLY a JSON list of strings. Example: ["food", "history"]
-        Do not include markdown formatting.
+        사용자 요청을 파싱하여 구조화된 여행 정보 추출
+        - destination, start_date, end_date, party_size, interests 등
+        
+        Args:
+            user_request: 전체 여행 정보 텍스트
+        
+        Returns:
+            {
+                'origin': '서울/인천 (ICN)',
+                'destination': '도쿄/나리타',
+                'start_date': '2025-12-04',
+                'end_date': '2025-12-08',
+                'party_size': 2,
+                'is_domestic': False,
+                'interests': ['맛집']
+            }
         """
         try:
+            prompt = f"""
+다음 사용자 요청을 분석하여 JSON 형식으로 변환하세요.
+
+사용자 요청:
+{user_request}
+
+JSON 형식:
+{{
+  "origin": "출발지 (IATA 코드 포함)",
+  "destination": "도착지/공항명",
+  "start_date": "YYYY-MM-DD",
+  "end_date": "YYYY-MM-DD",
+  "party_size": 숫자,
+  "is_domestic": true/false,
+  "budget_per_person": {{"amount": 숫자, "currency": "KRW"}},
+  "interests": ["키워드1", "키워드2"]
+}}
+
+반드시 JSON만 출력하세요. 다른 설명은 하지 마세요.
+"""
+            
+            print(f"[LLMService] 📝 Parsing user request...")
+            
             result = self._call_model(prompt)
-            # JSON 파싱 시도
             cleaned_result = result.replace("```json", "").replace("```", "").strip()
+            
+            parsed = json.loads(cleaned_result)
+            
+            print(f"[LLMService] ✅ Parsed Request: {parsed}")
+            return parsed
+            
+        except Exception as e:
+            print(f"[LLMService] ❌ parse_user_request error: {e}")
+            # 파싱 실패 시 기본값 반환
+            return {
+                'destination': '도쿄',
+                'start_date': '2025-12-04',
+                'end_date': '2025-12-08',
+                'party_size': 2,
+                'is_domestic': False,
+                'interests': ['관광']
+            }
+
+    # --- 💡 1. '하이브리드' 방식을 위한 신규 함수 (흥미 추출) ---
+    def extract_interests(self, text: str) -> list:
+        """
+        ✅ MD 파일(llm_interests_spec.md)을 사용하여 여행 스타일 키워드 추출
+        
+        Args:
+            text: "맛집 위주, 휴양 선호, 빡빡한 일정..."
+        
+        Returns:
+            ["맛집", "휴양"]
+        """
+        try:
+            # ✅ MD 파일 로드
+            system_prompt = self._get_system_prompt('llm_interests_spec.md')
+            
+            if not system_prompt:
+                # 폴백: 기본 프롬프트
+                system_prompt = """당신은 여행 스타일 키워드 추출 전문가입니다.
+사용자의 여행 스타일 텍스트가 주어지면, ['관광', '맛집', '쇼핑', '휴양', '액티비티', '문화/예술', '역사', '자연'] 중에서
+가장 관련 있는 키워드를 JSON 리스트 형식으로 반환합니다.
+만약 특별한 키워드가 없으면 ['관광']을 반환합니다."""
+            
+            # ✅ 전체 프롬프트 생성
+            full_prompt = f"""{system_prompt}
+
+사용자 입력: "{text}"
+
+JSON 리스트만 출력하세요. 예: ["관광", "맛집"]
+"""
+            
+            print(f"[LLMService] 🎨 Extracting interests: {text}")
+            
+            result = self._call_model(full_prompt)
+            cleaned_result = result.replace("```json", "").replace("```", "").strip()
+            
             interests = json.loads(cleaned_result)
             
-            # 딕셔너리 구조(예: {"keywords": [...]})가 올 경우 리스트로 명확히 변환
+            # ✅ 다양한 응답 형식 처리
             if isinstance(interests, list):
+                print(f"[LLMService] ✅ Extracted Interests: {interests}")
                 return interests
             elif isinstance(interests, dict):
                 # "keywords" 또는 "interests" 키가 있으면 그 내부 리스트 반환
@@ -96,11 +182,13 @@ class LLMService:
                         flat_list.extend(val)
                     elif isinstance(val, str):
                         flat_list.append(val)
-                return flat_list if flat_list else ["general"]
+                return flat_list if flat_list else ["관광"]
                 
-            return ["general"]
-        except:
-            return ["general"]
+            return ["관광"]
+            
+        except Exception as e:
+            print(f"[LLMService] ❌ extract_interests error: {e}. Falling back to ['관광']")
+            return ["관광"]
 
     # --- 💡 2. '하이브리드' 방식을 위한 신규 함수 (국내/해외 추론) ---
     def check_domestic(self, origin: str, destination: str) -> bool:
@@ -125,7 +213,11 @@ class LLMService:
             result = self._call_model(prompt)
             cleaned_result = result.replace("```json", "").replace("```", "").strip()
             result_json = json.loads(cleaned_result)
-            return result_json.get("is_domestic", False) 
+            
+            is_domestic = result_json.get("is_domestic", False)
+            print(f"[LLMService] 🌍 check_domestic: {origin} → {destination} = {is_domestic}")
+            
+            return is_domestic
         except (json.JSONDecodeError, KeyError, IndexError, TypeError, LLMServiceError) as e:
             print(f"LLMService Error (check_domestic): {e}. Falling back to default (False).")
             # 추론 실패 시 '해외'로 간주 (안전한 기본값)

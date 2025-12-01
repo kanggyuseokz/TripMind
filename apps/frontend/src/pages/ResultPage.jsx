@@ -52,72 +52,71 @@ export default function ResultPage() {
     return null;
   };
 
-  useEffect(() => {
+  // ResultPage.jsx의 useEffect 부분만 교체하세요
+
+useEffect(() => {
     if (!tripData) { 
-        console.error("❌ [DEBUG] tripData가 없습니다. Planner로 리다이렉트합니다.");
+        console.error("❌ [DEBUG] tripData가 없습니다.");
         navigate('/planner'); 
         return; 
     }
 
     console.log("🔍 [DEBUG] RAW tripData:", tripData);
+    console.log("🔍 [DEBUG] raw_data 존재:", !!tripData.raw_data);
+    console.log("🔍 [DEBUG] mcp_fetched_data 존재:", !!tripData.raw_data?.mcp_fetched_data);
 
-    const mcpSource = tripData.raw_data?.mcp_fetched_data || tripData.mcp_fetched_data || tripData;
+    // ✅ 안전한 접근: raw_data가 없을 수도 있음
+    const mcpData = tripData.raw_data?.mcp_fetched_data || tripData.mcp_fetched_data;
     
-    // 1. 항공권 리스트
-    let flights = findDataKey(mcpSource, 'flight_candidates');
-    if (!flights || flights.length === 0) {
-        const quote = findDataKey(mcpSource, 'flight_quote');
-        if (quote && Object.keys(quote).length > 0) flights = [quote];
-        else flights = findDataKey(tripData, 'flights') || [];
+    if (!mcpData) {
+        console.error("❌ [DEBUG] mcp_fetched_data가 없습니다!");
+        console.log("🔍 [DEBUG] tripData 전체 구조:", Object.keys(tripData));
+        
+        // ✅ 폴백: tripData에 직접 있을 수도 있음
+        const flights = tripData.flight_candidates || tripData.flights || [];
+        const hotels = tripData.hotel_candidates || tripData.hotels || [];
+        const schedule = tripData.schedule || [];
+        
+        console.log("✈️ [DEBUG] Fallback Flights:", flights.length, "개");
+        console.log("🏨 [DEBUG] Fallback Hotels:", hotels.length, "개");
+        
+        setFlightList(flights);
+        setHotelList(hotels);
+        setFinalPlan({
+            destination: tripData.destination || "여행지",
+            schedule: schedule,
+            startDate: tripData.start_date,
+            endDate: tripData.end_date,
+            total_cost: tripData.total_cost || tripData.budget,
+            pax: tripData.pax || tripData.party_size || 2
+        });
+        return;
     }
-    console.log("✈️ [DEBUG] Extracted Flights:", flights);
-    setFlightList(flights || []);
 
-    // 2. 호텔 리스트
-    let hotels = findDataKey(mcpSource, 'hotel_candidates');
-    if (!hotels || hotels.length === 0) {
-        hotels = findDataKey(mcpSource, 'hotel_quote');
-        if (!hotels || hotels.length === 0) hotels = findDataKey(tripData, 'hotels') || [];
-    }
-    console.log("🏨 [DEBUG] Extracted Hotels:", hotels);
-    setHotelList(hotels || []);
+    // ✅ 항공/호텔 직접 추출
+    const flights = mcpData.flight_candidates || [];
+    const hotels = mcpData.hotel_candidates || [];
+    const schedule = mcpData.schedule || tripData.schedule || [];
 
-    // 3. 일정
-    let schedule = findDataKey(mcpSource, 'schedule');
-    if (!schedule || schedule.length === 0) {
-        console.warn("⚠️ [DEBUG] MCP 스케줄 없음. LLM 기본 스케줄 사용.");
-        schedule = findDataKey(tripData, 'schedule');
-        if (!schedule) {
-             const llm = findDataKey(tripData, 'llm_parsed_data');
-             if (llm && llm.schedule) schedule = llm.schedule;
-        }
-    }
-    console.log("📅 [DEBUG] Final Schedule Data:", schedule);
+    console.log("✈️ [DEBUG] Extracted Flights:", flights.length, "개");
+    console.log("🏨 [DEBUG] Extracted Hotels:", hotels.length, "개");
+    console.log("📅 [DEBUG] Schedule:", schedule.length, "개");
 
-    // 메타 정보
-    const dest = findDataKey(tripData, 'destination') || "여행지";
-    const startDate = findDataKey(tripData, 'start_date') || tripData.startDate;
-    const endDate = findDataKey(tripData, 'end_date') || tripData.endDate;
-    const dates = findDataKey(tripData, 'dates');
-    const finalStart = dates?.start || startDate;
-    const finalEnd = dates?.end || endDate;
+    // ✅ 상태 업데이트
+    setFlightList(flights);
+    setHotelList(hotels);
 
-    // 인원 수
-    const pax = findDataKey(tripData, 'pax') || findDataKey(tripData, 'travelers') || findDataKey(tripData, 'head_count') || findDataKey(tripData, 'party_size') || 2;
-
-    // 예산
-    const budget = findDataKey(tripData, 'total_cost') || findDataKey(tripData, 'budget') || 1000000;
-
+    // ✅ finalPlan 설정
     setFinalPlan({
-        destination: dest,
-        schedule: schedule || [],
-        startDate: finalStart,
-        endDate: finalEnd,
-        total_cost: budget,
-        pax: pax
+        destination: tripData.destination || "여행지",
+        schedule: schedule,
+        startDate: tripData.start_date,
+        endDate: tripData.end_date,
+        total_cost: tripData.total_cost || tripData.budget,
+        pax: tripData.pax || tripData.party_size || 2
     });
 
-  }, [tripData, navigate]);
+}, [tripData, navigate]);
 
   // [Step 1] 항공권 선택 핸들러
   const handleSelectFlight = (flight) => {

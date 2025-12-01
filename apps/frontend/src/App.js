@@ -10,6 +10,7 @@ import SavedTripsPage from './pages/SavedTripsPage';
 import MyPage from './pages/MyPage';
 import EditProfilePage from './pages/EditProfilePage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage'; // 👈 추가
+import ViewTripPage from './pages/ViewTrippage';
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/planner" element={<PlannerPage />} />
           <Route path="/result" element={<ResultPage />} />
           <Route path="/saved" element={<SavedTripsPage />} />
+          <Route path="/trip/:id" element={<ViewTripPage />} />
           <Route path="/mypage" element={<MyPage />} />
           <Route path="/mypage/edit" element={<EditProfilePage />} />
           

@@ -168,10 +168,7 @@ export default function PlannerPage() {
 
         navigate('/result', { 
           state: { 
-            tripData: {
-              ...requestBody,
-              ...data.content
-            }
+            tripData: data
           } 
         });
 

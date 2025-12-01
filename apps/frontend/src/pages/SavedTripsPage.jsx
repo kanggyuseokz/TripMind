@@ -140,17 +140,7 @@ export default function SavedTripsPage() {
 
   // ✅ 카드 클릭 시 상세 페이지로 이동
   const handleCardClick = (trip) => {
-    const tripData = {
-      trip_summary: trip.trip_summary,
-      destination: trip.destination,
-      startDate: trip.start_date,
-      endDate: trip.end_date,
-      partySize: trip.head_count,
-      budget: trip.total_cost,
-      ...trip.content 
-    };
-    
-    navigate('/result', { state: { tripData } });
+    navigate(`/trip/${trip.id}`);
   };
 
   // 로딩 상태

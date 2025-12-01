@@ -28,9 +28,16 @@ class TripService:
                 raise KeyError("필수 필드 누락")
 
             # Step 1: MCP 데이터 수집
-            mcp_data = self.mcp_service.fetch_all_data(parsed_data, user_style)
-            if not mcp_data:
+            mcp_result = self.mcp_service.fetch_all_data(parsed_data, user_style)
+            if not mcp_result:
                 raise Exception("MCP service failed to fetch data.")
+
+            # ✅ MCP가 'data' 키로 감싸서 반환하는 경우 처리
+            if 'data' in mcp_result and isinstance(mcp_result['data'], dict):
+                mcp_data = mcp_result['data']
+                print("[TripService] ✅ MCP data unwrapped from 'data' key")
+            else:
+                mcp_data = mcp_result
 
             print(f"[TripService] 🔍 MCP Data Keys: {list(mcp_data.keys())}")
             print(f"[TripService] ✈️ flight_candidates: {len(mcp_data.get('flight_candidates', []))}")
