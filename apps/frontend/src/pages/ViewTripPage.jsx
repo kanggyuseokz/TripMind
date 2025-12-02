@@ -55,16 +55,37 @@ export default function ViewTripPage() {
   useEffect(() => {
     const fetchTrip = async () => {
       try {
-        const token = localStorage.getItem('access_token');
+        // ✅ LoginPage에서 저장한 키 사용
+        const token = localStorage.getItem('token');
+        
+        console.log('[ViewTripPage] Token found:', !!token);
+        
+        if (!token) {
+          console.error('No access token found');
+          alert('로그인이 필요합니다.');
+          navigate('/login');
+          return;
+        }
+
+        console.log(`[ViewTripPage] Fetching trip ${id}...`);
+        
         const response = await fetch(`http://127.0.0.1:8080/api/trip/saved/${id}`, {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         });
 
-        if (!response.ok) throw new Error('Failed to fetch trip');
+        console.log(`[ViewTripPage] Response status: ${response.status}`);
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('[ViewTripPage] Error response:', errorData);
+          throw new Error(errorData.error || 'Failed to fetch trip');
+        }
 
         const data = await response.json();
+        console.log('[ViewTripPage] Trip data received:', data);
         
         // ✅ 데이터 변환
         const budget = parseInt(data.budget || data.total_cost || 0, 10);
@@ -122,7 +143,7 @@ export default function ViewTripPage() {
       } catch (error) {
         console.error('Error fetching trip:', error);
         alert('여행 정보를 불러오는데 실패했습니다.');
-        navigate('/saved-trips');
+        navigate('/saved');
       }
     };
 
@@ -133,7 +154,7 @@ export default function ViewTripPage() {
     if (!window.confirm('정말로 이 여행을 삭제하시겠습니까?')) return;
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem('token');
       const response = await fetch(`http://127.0.0.1:8080/api/trip/${id}`, {
         method: 'DELETE',
         headers: {
@@ -144,7 +165,7 @@ export default function ViewTripPage() {
       if (!response.ok) throw new Error('Failed to delete trip');
 
       alert('여행이 삭제되었습니다.');
-      navigate('/saved-trips');
+      navigate('/saved');
     } catch (error) {
       console.error('Error deleting trip:', error);
       alert('삭제에 실패했습니다.');
@@ -368,7 +389,7 @@ export default function ViewTripPage() {
 
       <div className="text-center mt-8 mb-4 flex gap-4 justify-center">
         <button 
-          onClick={() => navigate('/saved-trips')} 
+          onClick={() => navigate('/saved')} 
           className="bg-gray-200 text-gray-700 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-300 transition-all"
         >
           목록으로

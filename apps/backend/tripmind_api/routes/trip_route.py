@@ -147,6 +147,35 @@ def get_saved_trips():
         print(f"[TripRoute] ❌ Error in /saved: {e}")
         return jsonify({"error": str(e)}), 500
 
+@bp.get("/saved/<int:trip_id>")
+@jwt_required()
+def get_trip_detail(trip_id):
+    """특정 여행 상세 조회"""
+    try:
+        user_id = get_jwt_identity()
+        trip = Trip.query.filter_by(id=trip_id, user_id=int(user_id)).first()
+        
+        if not trip:
+            return jsonify({"error": "Trip not found"}), 404
+        
+        return jsonify({
+            "id": trip.id,
+            "trip_summary": trip.trip_summary,
+            "destination": trip.destination,
+            "start_date": trip.start_date.isoformat() if trip.start_date else None,
+            "end_date": trip.end_date.isoformat() if trip.end_date else None,
+            "pax": trip.head_count,
+            "party_size": trip.head_count,
+            "head_count": trip.head_count,
+            "budget": trip.total_cost,
+            "total_cost": trip.total_cost,
+            "schedule": trip.schedule_json,
+            "raw_data": trip.raw_data_json
+        }), 200
+
+    except Exception as e:
+        print(f"[TripRoute] ❌ Error in /saved/<id>: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @bp.delete("/saved/<int:trip_id>")
 @jwt_required()

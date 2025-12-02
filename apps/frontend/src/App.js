@@ -10,7 +10,7 @@ import SavedTripsPage from './pages/SavedTripsPage';
 import MyPage from './pages/MyPage';
 import EditProfilePage from './pages/EditProfilePage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage'; // 👈 추가
-import ViewTripPage from './pages/ViewTrippage';
+import ViewTripPage from './pages/ViewTripPage';
 
 export default function App() {
   return (

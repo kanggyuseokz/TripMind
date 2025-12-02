@@ -33,6 +33,31 @@ class MCPService:
             parts = time_str.split(':')
             return int(parts[0]) * 60 + int(parts[1])
         except: return 0
+    
+    def _generate_default_schedule(self, start_date: date, end_date: date) -> List[Dict]:
+        """기본 일정 생성"""
+        schedule = []
+        current_date = start_date
+        day_num = 1
+        
+        while current_date <= end_date:
+            day_schedule = {
+                "day": day_num,
+                "date": f"Day {day_num}",
+                "full_date": current_date.isoformat(),
+                "events": [
+                    {"time_slot": "09:00", "description": "호텔 출발 및 관광 시작", "icon": "car"},
+                    {"time_slot": "12:00", "description": "점심 식사", "icon": "utensils"},
+                    {"time_slot": "14:00", "description": "오후 관광", "icon": "camera"},
+                    {"time_slot": "18:00", "description": "저녁 식사 및 자유 시간", "icon": "utensils"},
+                    {"time_slot": "21:00", "description": "호텔 복귀", "icon": "home"}
+                ]
+            }
+            schedule.append(day_schedule)
+            current_date += timedelta(days=1)
+            day_num += 1
+        
+        return schedule
 
     def _adjust_first_day_schedule(self, schedule: List[Any], arrival_time_str: str) -> List[Any]:
         print(f"[DEBUG] _adjust_first_day_schedule Called. Arrival: {arrival_time_str}")
@@ -152,6 +177,13 @@ class MCPService:
             e_date = date.fromisoformat(end) if isinstance(end, str) else end
             pax = self._get_safe_value(llm_data, 'party_size', 1)
             raw_schedule = self._get_safe_value(llm_data, 'schedule', [])
+            
+            # ✅ 비어있으면 기본 일정 생성
+            if not raw_schedule:
+                print("[MCP] ⚠️ No schedule from LLM, generating default schedule...")
+                raw_schedule = self._generate_default_schedule(s_date, e_date)
+                print(f"[MCP] ✅ Default schedule generated: {len(raw_schedule)} days")
+            
             budget = self._get_safe_value(llm_data, 'budget_per_person') or self._get_safe_value(llm_data, 'budget') or 0
             
         except Exception as e:
@@ -219,7 +251,9 @@ class MCPService:
         }
         
         print(f"[{request_id}] MCP Done. Flights: {len(final_flight_list)}, Hotels: {len(final_hotel_list)}")
-        return {"data": response_data}
+        print(f"[MCP] 📅 Schedule in response_data: {len(response_data.get('schedule', []))}")
+        
+        return response_data
 
 mcp_service_instance = MCPService()
 def get_mcp_service(): return mcp_service_instance
