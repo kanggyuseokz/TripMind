@@ -1,8 +1,11 @@
+# mcp/mcp_server/clients/agoda_client.py
+
 import re
 import httpx
 import json
 import asyncio
 import google.generativeai as genai
+import requests
 from datetime import date
 from ..config import settings
 
@@ -10,6 +13,110 @@ from ..config import settings
 class AgodaClientError(Exception):
     """Agoda API 클라이언트 관련 에러 정의"""
     pass
+
+
+class ExchangeService:
+    """한국수출입은행 환율 정보 간편 조회"""
+    
+    def __init__(self):
+        try:
+            # ✅ 정확한 API URL (oapi 서브도메인)
+            self.base_url = settings.EXCHANGE_BASE or "https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON"
+            self.auth_key = settings.EXCHANGE_API_KEY
+            self.data_code = settings.EXCHANGE_DATA_CODE or "AP01"
+            self.enabled = True
+            
+            # urllib3 경고 숨기기
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            
+        except AttributeError:
+            print("[ExchangeService] ⚠️ Exchange API settings not found, using fallback rate")
+            self.enabled = False
+    
+    def get_rate(self, currency_code: str, search_date: str = None) -> float:
+        """
+        특정 통화의 매매기준율(KRW) 조회
+        
+        Args:
+            currency_code: 통화 코드 (USD, JPY, EUR 등)
+            search_date: 검색 날짜 (YYYYMMDD 또는 YYYY-MM-DD, 기본값: 오늘)
+        
+        Returns:
+            float: 매매기준율 (KRW)
+        """
+        if not self.enabled:
+            return 1300.0  # Fallback
+        
+        try:
+            params = {
+                "authkey": self.auth_key,
+                "data": self.data_code
+            }
+            
+            # 날짜 파라미터 추가 (옵션)
+            if search_date:
+                params["searchdate"] = search_date
+            
+            response = requests.get(
+                self.base_url,
+                params=params,
+                timeout=10,
+                verify=False  # SSL 검증 비활성화
+            )
+            response.raise_for_status()
+            rows = response.json()
+            
+            # ✅ 응답 검증
+            if not rows or not isinstance(rows, list):
+                print(f"[ExchangeService] ⚠️ Invalid response format")
+                return 1300.0
+            
+            # 첫 번째 항목의 result 확인
+            if rows and rows[0].get("result") != 1:
+                result_code = rows[0].get("result")
+                error_msg = {
+                    2: "DATA 코드 오류",
+                    3: "인증코드 오류",
+                    4: "일일제한횟수 마감"
+                }.get(result_code, f"알 수 없는 오류 ({result_code})")
+                print(f"[ExchangeService] ❌ API Error: {error_msg}")
+                return 1300.0
+            
+            # 통화 검색
+            for row in rows:
+                cur_unit = row.get("cur_unit", "")
+                
+                # 통화 코드 매칭 (JPY(100) 같은 형식 처리)
+                if cur_unit.upper().startswith(currency_code.upper()):
+                    deal_bas_r = row.get("deal_bas_r", "0")
+                    
+                    # 쉼표 제거 및 float 변환
+                    try:
+                        base_rate = float(deal_bas_r.replace(",", ""))
+                    except (ValueError, AttributeError):
+                        print(f"[ExchangeService] ⚠️ Invalid rate value: {deal_bas_r}")
+                        continue
+                    
+                    # 단위 보정 (JPY(100), IDR(100), ESP(100) 등)
+                    match = re.search(r"\((\d+)\)", cur_unit)
+                    if match:
+                        divisor = int(match.group(1))
+                        if divisor > 0:
+                            base_rate /= divisor
+                    
+                    print(f"[ExchangeService] ✅ {cur_unit}: {base_rate} KRW")
+                    return base_rate
+            
+            print(f"[ExchangeService] ⚠️ Currency '{currency_code}' not found")
+            return 1300.0  # Fallback
+            
+        except requests.RequestException as e:
+            print(f"[ExchangeService] ⚠️ API request failed: {e}")
+            return 1300.0  # Fallback
+        except Exception as e:
+            print(f"[ExchangeService] ⚠️ Unexpected error: {e}")
+            return 1300.0  # Fallback
 
 
 class AgodaClient:
@@ -32,6 +139,24 @@ class AgodaClient:
         except Exception as e:
             print(f"[AgodaClient] Gemini Init Failed: {e}")
             self.use_llm = False
+        
+        # ✅ 환율 서비스 및 캐시
+        self.exchange_service = ExchangeService()
+        self._usd_to_krw_rate = None
+    
+    def _get_usd_to_krw_rate(self) -> float:
+        """USD → KRW 환율 조회 (캐시 사용)"""
+        if self._usd_to_krw_rate:
+            return self._usd_to_krw_rate
+        
+        try:
+            self._usd_to_krw_rate = self.exchange_service.get_rate("USD")
+            print(f"[Agoda] ✅ USD/KRW rate: {self._usd_to_krw_rate}")
+        except Exception as e:
+            print(f"[Agoda] ⚠️ Exchange API error: {e}, using fallback rate: 1300")
+            self._usd_to_krw_rate = 1300.0
+        
+        return self._usd_to_krw_rate
 
     async def _ask_llm_for_iata(self, location: str) -> str | None:
         """LLM에게 도시 이름을 주고 IATA 코드를 물어봅니다."""
@@ -299,8 +424,6 @@ class AgodaClient:
                     city_search = data["citySearch"]
                     search_result = city_search.get("searchResult", {})
                     hotels = search_result.get("properties") or city_search.get("properties") or []
-                elif "hotels" in data:
-                    hotels = data["hotels"]
                 elif "properties" in data:
                     hotels = data["properties"]
                 
@@ -318,21 +441,41 @@ class AgodaClient:
                     # 호텔 이름
                     name = info.get("localeName") or info.get("defaultName") or "이름 없음"
                     
-                    # 가격 추출
+                    # ✅ 가격 추출 (정확한 경로)
                     price_val = 0
+                    price_currency = "KRW"
                     try:
-                        if "offers" in pricing and pricing["offers"]:
-                            first_offer = pricing["offers"][0]
-                            if "price" in first_offer:
-                                price_info = first_offer["price"]
-                                price_val = (price_info.get("perRoomPerNight") or
-                                           price_info.get("perBook") or
-                                           price_info.get("amount") or 0)
+                        # API 응답 구조: pricing.offers[0].roomOffers[0].room.pricing[0].price.perRoomPerNight.exclusive.display
+                        offers = pricing.get("offers", [])
+                        if offers and len(offers) > 0:
+                            room_offers = offers[0].get("roomOffers", [])
+                            if room_offers and len(room_offers) > 0:
+                                room = room_offers[0].get("room", {})
+                                room_pricing = room.get("pricing", [])
+                                if room_pricing and len(room_pricing) > 0:
+                                    price_data = room_pricing[0]
+                                    
+                                    # 통화 확인
+                                    price_currency = price_data.get("currency", "USD").upper()
+                                    
+                                    # 가격 추출
+                                    price_obj = price_data.get("price", {})
+                                    per_room = price_obj.get("perRoomPerNight", {})
+                                    exclusive = per_room.get("exclusive", {})
+                                    price_val = exclusive.get("display", 0)
                         
-                        if not price_val and "price" in pricing:
-                            price_val = pricing["price"]
-                    except:
-                        pass
+                        # ✅ USD인 경우에만 KRW로 변환
+                        if price_val > 0 and price_currency == "USD":
+                            exchange_rate = self._get_usd_to_krw_rate()
+                            price_val = int(price_val * exchange_rate)
+                            print(f"[Agoda] 💱 Converted {price_val / exchange_rate:.2f} USD → {price_val} KRW")
+                        elif price_val > 0:
+                            price_val = int(price_val)
+                            print(f"[Agoda] ✅ Price in {price_currency}: {price_val}")
+                            
+                    except Exception as e:
+                        print(f"[Agoda] ❌ Price extraction error for hotel {property_id}: {e}")
+                        price_val = 0
                     
                     # 별점
                     rating = info.get("rating", 0)
@@ -352,7 +495,11 @@ class AgodaClient:
                     if "images" in content:
                         images = content["images"]
                         if isinstance(images, list) and images:
-                            img_url = images[0].get("url") or images[0].get("source")
+                            hotel_images = images.get("hotelImages", [])
+                            if hotel_images:
+                                urls = hotel_images[0].get("urls", [])
+                                if urls:
+                                    img_url = urls[0].get("value")
                     
                     parsed_hotels.append({
                         "id": property_id,
@@ -370,7 +517,8 @@ class AgodaClient:
                 
                 return parsed_hotels
                 
-            except:
+            except Exception as e:
+                print(f"[Agoda] ❌ Hotel search error: {e}")
                 return []
 
     async def get_hotel_details(self, hotel_id: str, start_date: date, end_date: date, pax: int = 2):
@@ -419,4 +567,4 @@ class AgodaClient:
                     "longitude": data.get("longitude")
                 }
             except:
-                return None 
+                return None

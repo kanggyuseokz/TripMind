@@ -22,6 +22,11 @@ class Settings:
     RAPID_HOST: str = os.getenv("RAPID_HOST")
     RAPID_BASE: str = os.getenv("RAPID_BASE")
 
+    # Exchange APIs
+    EXCHANGE_BASE = os.getenv("EXCHANGE_BASE", "https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON")
+    EXCHANGE_API_KEY = os.getenv("EXCHANGE_API_KEY")
+    EXCHANGE_DATA_CODE = os.getenv("EXCHANGE_DATA_CODE", "AP01")
+
 # 다른 파일에서 from .config import settings 로 참조할 수 있도록 인스턴스를 생성합니다.
 settings = Settings()
 
