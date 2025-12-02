@@ -36,9 +36,22 @@ class MCPService:
             
             response_json = response.json()
             print("[MCPService] MCP 서버로부터 데이터 수신 성공.") # 디버깅 로그
+             # ✅ 디버깅 추가
+            print(f"[MCP] 📦 Full Response Keys: {list(response_json.keys())}")
             
+            mcp_data = response_json.get("data")
+            if mcp_data:
+                print(f"[MCP] 📦 Data Keys: {list(mcp_data.keys())}")
+                schedule = mcp_data.get('schedule', [])
+                print(f"[MCP] 📅 Schedule exists: {schedule is not None}")
+                print(f"[MCP] 📅 Schedule length: {len(schedule) if schedule else 0}")
+                if schedule and len(schedule) > 0:
+                    print(f"[MCP] 📅 First day: {schedule[0]}")
+            else:
+                print("[MCP] ⚠️ 'data' key not found in response!")
+
             # MCP 서버의 응답에서 'data' 키 내부의 실제 데이터를 반환
-            return response_json.get("data") 
+            return mcp_data
 
         except httpx.HTTPStatusError as e:
             # MCP 서버가 4xx, 5xx 응답을 반환한 경우

@@ -43,6 +43,16 @@ class TripService:
             print(f"[TripService] ✈️ flight_candidates: {len(mcp_data.get('flight_candidates', []))}")
             print(f"[TripService] 🏨 hotel_candidates: {len(mcp_data.get('hotel_candidates', []))}")
 
+            # ✅ Schedule 디버깅 추가
+            print(f"[TripService] 📅 schedule exists in mcp_data: {'schedule' in mcp_data}")
+            raw_schedule = mcp_data.get('schedule', [])
+            print(f"[TripService] 📅 raw schedule type: {type(raw_schedule)}")
+            print(f"[TripService] 📅 raw schedule length: {len(raw_schedule) if raw_schedule else 0}")
+            if raw_schedule and len(raw_schedule) > 0:
+                print(f"[TripService] 📅 First schedule item: {raw_schedule[0]}")
+            else:
+                print(f"[TripService] ⚠️ Schedule is empty or None!")
+
             # Step 2: 여행 기간 계산
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
@@ -70,6 +80,12 @@ class TripService:
             
             # Step 5: 일정 생성 (MCP에서 이미 enriched된 일정 사용)
             final_schedule = mcp_data.get('schedule', [])
+
+            # ✅ Final schedule 디버깅
+            print(f"[TripService] 📅 final_schedule length: {len(final_schedule)}")
+            if final_schedule:
+                print(f"[TripService] 📅 final_schedule sample: {final_schedule[0] if len(final_schedule) > 0 else 'empty'}")
+
 
             # 🎯 Step 6: 프론트엔드 구조에 맞춰 최종 결과 반환
             result = {
@@ -102,7 +118,9 @@ class TripService:
             
             print(f"[TripService] ✅ Final Result - Flights in raw_data: {len(result['raw_data']['mcp_fetched_data']['flight_candidates'])}")
             print(f"[TripService] ✅ Final Result - Hotels in raw_data: {len(result['raw_data']['mcp_fetched_data']['hotel_candidates'])}")
-            
+            print(f"[TripService] ✅ Final Result - Schedule in result: {len(result['schedule'])}")
+            print(f"[TripService] ✅ Final Result - Schedule in raw_data: {len(result['raw_data']['mcp_fetched_data']['schedule'])}")
+     
             return result
         
         except Exception as e:
