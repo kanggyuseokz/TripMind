@@ -362,18 +362,26 @@ Return ONLY valid JSON array:
         print(f"[DEBUG] Total Enriched Events: {enriched_count}")
         return schedule
 
-    async def generate_trip_data(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
-        print(f"[MCP] generate_trip_data Start")
+    async def generate_trip_data(self, llm_parsed_data: dict) -> dict:
+        """
+        MCP 서버의 핵심 로직: 항공, 호텔, POI, 날씨, 일정을 종합적으로 생성
+        
+        Returns:
+            dict: 다음 필드를 포함:
+                - dates: {"start": "2025-12-06", "end": "2025-12-10"}
+                - flight_candidates: 항공편 목록 (시간 정보 포함)
+                - flight_quote: 추천 항공편 (시간 정보 포함)
+                - hotel_candidates: 호텔 목록
+                - schedule: 일정 (날짜별 날씨 포함)
+                - weather_info: 날씨 정보
+                - weather_by_date: 날짜별 날씨 매핑
+        """
         try:
-            if 'llm_parsed_data' in request_data:
-                llm_data = request_data['llm_parsed_data'] if isinstance(request_data, dict) else getattr(request_data, 'llm_parsed_data')
-                user_style = request_data.get("user_preferred_style", []) if isinstance(request_data, dict) else getattr(request_data, "user_preferred_style", [])
-                request_id = request_data.get("request_id", "mcp") if isinstance(request_data, dict) else getattr(request_data, "request_id", "mcp")
-            else:
-                llm_data = request_data
-                user_style = request_data.get("user_preferred_style", [])
-                request_id = "mcp"
+            print("[MCP] generate_trip_data Start")
             
+            llm_data = llm_parsed_data.get('llm_parsed_data', llm_parsed_data)
+            
+            # 기본 정보 추출
             dest = self._get_safe_value(llm_data, 'destination')
             origin = self._get_safe_value(llm_data, 'origin') or "Seoul"
             start = self._get_safe_value(llm_data, 'start_date')
@@ -399,86 +407,117 @@ Return ONLY valid JSON array:
         except Exception as e:
             print(f"[MCP] Input Parse Error: {e}")
             return {"error": str(e)}
-
-        results = await asyncio.gather(
-            self.poi_client.search_pois(dest, False, user_style),
-            self.weather_client.get_weather_forecast(dest, s_date, e_date),
-            self.agoda_client.search_flights(origin, dest, s_date, e_date, pax),
-            self.agoda_client.search_hotels(dest, s_date, e_date, pax),
-            return_exceptions=True
-        )
-
-        poi_data = results[0] if not isinstance(results[0], Exception) else []
-        weather_data = results[1] if not isinstance(results[1], Exception) else {}
-        flight_data = results[2] if not isinstance(results[2], Exception) else []
-        hotel_data = results[3] if not isinstance(results[3], Exception) else []
-
-        norm_pois = []
-        for p in poi_data:
-            if isinstance(p, dict):
-                np = p.copy()
-                if 'lat' in np: np['latitude'] = np['lat']
-                if 'lng' in np: np['longitude'] = np['lng']
-                norm_pois.append(np)
         
-        # ✅ 스타일 기반 일정 생성
-        raw_schedule = self._generate_schedule_with_style(
-            destination=dest,
-            start_date=s_date,
-            end_date=e_date,
-            travel_style=travel_style,
-            interests=interests,
-            poi_list=norm_pois
-        )
-        
-        # ✅ 비어있으면 기본 일정 생성
-        if not raw_schedule:
-            print("[MCP] ⚠️ No schedule generated, using default schedule")
-            raw_schedule = self._generate_default_schedule(s_date, e_date)
-
-        arrival_time = None
-        if flight_data: arrival_time = flight_data[0].get("arrival_time")
-        
-        # 1. 일정 조정 (시간 기준)
-        if arrival_time: adjusted_schedule = self._adjust_first_day_schedule(raw_schedule, arrival_time)
-        else: adjusted_schedule = raw_schedule
-
-        # 2. 일정 Enrichment (POI 주입)
-        enriched_schedule = self._enrich_schedule_with_pois(adjusted_schedule, norm_pois)
-
-        final_flight_list = []
-        for f in flight_data:
-            f_clean = f.copy()
-            if 'price_total' in f_clean:
-                f_clean['price_total'] = self._sanitize_price(f_clean['price_total'])
-                f_clean['price'] = f_clean['price_total']
-            final_flight_list.append(f_clean)
-
-        final_hotel_list = []
-        for h in hotel_data:
-            h_clean = h.copy()
-            if 'price' in h_clean: h_clean['price'] = self._sanitize_price(h_clean['price'])
-            final_hotel_list.append(h_clean)
-
-        response_data = {
-            "destination": dest,
-            "dates": {"start": s_date.isoformat(), "end": e_date.isoformat()},
-            "trip_duration_nights": (e_date - s_date).days,
-            "party_size": pax,
-            "budget_per_person": budget,
-            "poi_list": norm_pois,
-            "weather_info": weather_data,
-            "flight_candidates": final_flight_list, 
-            "hotel_candidates": final_hotel_list,
-            "flight_quote": final_flight_list[0] if final_flight_list else {},
-            "hotel_quote": final_hotel_list,
-            "schedule": enriched_schedule
-        }
-        
-        print(f"[{request_id}] MCP Done. Flights: {len(final_flight_list)}, Hotels: {len(final_hotel_list)}")
-        print(f"[MCP] 📅 Schedule in response_data: {len(response_data.get('schedule', []))}")
-        
-        return response_data
+        # 병렬 호출
+        try:
+            results = await asyncio.gather(
+                self.poi_client.search_pois(dest),
+                self.weather_client.get_weather_forecast(dest, s_date, e_date),
+                self.flight_client.search_flights("ICN", dest, s_date.isoformat(), e_date.isoformat(), pax),
+                self.agoda_client.search_hotels(dest, s_date.isoformat(), e_date.isoformat(), pax),
+                return_exceptions=True
+            )
+            
+            poi_data = results[0] if not isinstance(results[0], Exception) else []
+            weather_data = results[1] if not isinstance(results[1], Exception) else {}
+            flight_data = results[2] if not isinstance(results[2], Exception) else []
+            hotel_data = results[3] if not isinstance(results[3], Exception) else []
+            
+            # POI normalize
+            norm_pois = []
+            for p in poi_data:
+                if isinstance(p, dict):
+                    np = p.copy()
+                    if 'lat' in np: np['latitude'] = np['lat']
+                    if 'lng' in np: np['longitude'] = np['lng']
+                    norm_pois.append(np)
+            
+            # ✅ 스타일 기반 일정 생성
+            raw_schedule = self._generate_schedule_with_style(
+                destination=dest,
+                start_date=s_date,
+                end_date=e_date,
+                travel_style=travel_style,
+                interests=interests,
+                poi_list=norm_pois
+            )
+            
+            # ✅ 날씨를 날짜별로 매핑
+            weather_by_date = {}
+            if weather_data and "daily" in weather_data:
+                for day_weather in weather_data["daily"]:
+                    date_key = day_weather.get("date")
+                    if date_key:
+                        weather_by_date[date_key] = {
+                            "temp": day_weather.get("temp"),
+                            "condition": day_weather.get("condition"),
+                            "icon": day_weather.get("icon"),
+                            "description": day_weather.get("description")
+                        }
+            
+            # 항공편 데이터 정리 (✅ 시간 정보 유지)
+            final_flight_list = []
+            for f in flight_data:
+                f_clean = f.copy()
+                # 시간 필드 유지
+                # outbound_departure_time, outbound_arrival_time
+                # inbound_departure_time, inbound_arrival_time
+                final_flight_list.append(f_clean)
+            
+            # 호텔 데이터 정리
+            final_hotel_list = []
+            for h in hotel_data:
+                h_clean = h.copy()
+                final_hotel_list.append(h_clean)
+            
+            # ✅ 최종 응답 데이터
+            response_data = {
+                # ✅ 1. 여행 기간 추가
+                "dates": {
+                    "start": s_date.isoformat(),
+                    "end": e_date.isoformat()
+                },
+                
+                # ✅ 2. 항공편 (시간 정보 포함)
+                "flight_candidates": final_flight_list,
+                "flight_quote": final_flight_list[0] if final_flight_list else {},
+                
+                # 3. 호텔
+                "hotel_candidates": final_hotel_list,
+                "hotel_quote": final_hotel_list[0] if final_hotel_list else {},
+                
+                # 4. 일정
+                "schedule": raw_schedule,
+                
+                # ✅ 5. 날씨 (원본 + 날짜별)
+                "weather_info": weather_data,
+                "weather_by_date": weather_by_date,
+                
+                # 6. POI
+                "poi_list": norm_pois[:50],
+                
+                # 7. 메타데이터
+                "destination": dest,
+                "party_size": pax,
+                "budget_per_person": budget,
+                "travel_style": travel_style,
+                "interests": interests
+            }
+            
+            print(f"[MCP] ✅ Response generated successfully")
+            print(f"[MCP] 📅 Dates: {response_data['dates']}")
+            print(f"[MCP] ✈️ Flights: {len(final_flight_list)}")
+            print(f"[MCP] 🏨 Hotels: {len(final_hotel_list)}")
+            print(f"[MCP] 📋 Schedule days: {len(raw_schedule)}")
+            print(f"[MCP] 🌤️ Weather by date: {len(weather_by_date)} days")
+            
+            return response_data
+            
+        except Exception as e:
+            print(f"[MCP] ❌ Error in generate_trip_data: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"error": str(e)}
 
 mcp_service_instance = MCPService()
 def get_mcp_service(): return mcp_service_instance

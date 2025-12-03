@@ -219,120 +219,145 @@ class AgodaClient:
         except:
             return None
 
-    async def search_flights(self, origin: str, destination: str, start_date: date, end_date: date, pax: int = 1):
-        """항공편 검색 (비동기 폴링 지원)"""
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            origin_code = await self._get_iata_code(client, origin)
-            dest_code = await self._get_iata_code(client, destination)
 
-            if not origin_code or not dest_code:
-                return []
-
-            params = {
-                "origin": origin_code,
-                "destination": dest_code,
-                "departureDate": start_date.strftime("%Y-%m-%d"),
-                "returnDate": end_date.strftime("%Y-%m-%d"),
-                "adults": pax,
-                "currency": "KRW",
-                "language": "en-us",
-                "sort": "Best",
-                "limit": 20,
-                "page": 1
-            }
-
+def search_flights(self, origin, destination, depart_date, return_date, adults=1):
+    """
+    항공권 검색 (왕복)
+    
+    Returns:
+        list: 항공편 리스트, 각 항공편은 다음 필드를 포함:
+            - outbound_departure_time: 출국편 출발 시간
+            - outbound_arrival_time: 출국편 도착 시간
+            - inbound_departure_time: 입국편 출발 시간 (왕복인 경우)
+            - inbound_arrival_time: 입국편 도착 시간 (왕복인 경우)
+            - price_krw: 가격 (KRW)
+            - airline: 항공사
+            - duration: 총 소요 시간 (분)
+    """
+    try:
+        # API 호출
+        url = "https://agoda-com-flight.p.rapidapi.com/api/v1/flights/search-roundtrip"
+        
+        querystring = {
+            "origin": origin,
+            "destination": destination,
+            "departureDate": depart_date,
+            "returnDate": return_date,
+            "adults": str(adults),
+            "children": "0",
+            "infants": "0",
+            "cabinClass": "ECONOMY",
+            "currency": "USD",
+            "market": "en-us",
+            "countryCode": "US"
+        }
+        
+        headers = {
+            "x-rapidapi-key": self.api_key,
+            "x-rapidapi-host": "agoda-com-flight.p.rapidapi.com"
+        }
+        
+        response = requests.get(url, headers=headers, params=querystring, timeout=30)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if not data.get('status'):
+            print(f"[Agoda] API returned status=false")
+            return []
+        
+        bundles = data.get('data', {}).get('bundles', [])
+        
+        if not bundles:
+            print(f"[Agoda] No flight bundles found")
+            return []
+        
+        flights = []
+        
+        for bundle in bundles[:10]:  # 상위 10개만
             try:
-                # 비동기 검색 처리 - 최대 5번 재시도
-                max_retries = 5
-                retry_count = 0
+                # 가격 정보
+                price_info = bundle.get('bundlePrice', [{}])[0].get('price', {}).get('usd', {})
+                price_usd = price_info.get('display', {}).get('perBook', {}).get('allInclusive', 0)
                 
-                while retry_count < max_retries:
-                    response = await client.get(
-                        f"{self.base_url}/flights/search-roundtrip",
-                        headers=self.headers,
-                        params=params
-                    )
-                    
-                    if response.status_code != 200:
-                        return []
-                    
-                    json_data = response.json()
-                    retry_info = json_data.get("retry", {})
-                    next_retry_ms = retry_info.get("next", 0)
-                    
-                    trips = json_data.get("trips", [])
-                    if trips:
-                        trip = trips[0]
-                        is_completed = trip.get("isCompleted", False)
-                        bundles = trip.get("bundles", [])
-                        
-                        # 검색 완료된 경우
-                        if is_completed or len(bundles) > 0:
-                            if not bundles:
-                                return []
-                            
-                            # 결과 파싱
-                            results = []
-                            for item in bundles[:10]:
-                                info = item.get("itineraries", [{}])[0].get("itineraryInfo", {})
-                                
-                                # 시간 추출
-                                arrival_time = None
-                                departure_time = None
-                                duration_str = "정보 없음"
-                                sectors = item.get("itineraries", [{}])[0].get("sectors", [])
-                                if sectors:
-                                    outbound = sectors[0]
-                                    segments = outbound.get("sectorSegments", [])
-                                    if segments:
-                                        departure_time = segments[0].get("segment", {}).get("departureDateTime")
-                                        arrival_time = segments[-1].get("segment", {}).get("arrivalDateTime")
-                                        if "duration" in info:
-                                            duration_val = info["duration"]
-                                            duration_str = f"{duration_val // 60}시간 {duration_val % 60}분" if isinstance(duration_val, int) else str(duration_val)
-
-                                # 가격 파싱
-                                price_val = 0
-                                currency = "KRW"
-                                price_info = info.get("price", {})
-                                if price_info:
-                                    currency = next(iter(price_info), "KRW").upper()
-                                    try:
-                                        curr_data = price_info.get(currency.lower()) or {}
-                                        display_data = curr_data.get("display") or {}
-                                        per_book = display_data.get("perBook") or {}
-                                        price_val = per_book.get("allInclusive") or 0
-                                    except:
-                                        price_val = 0
-
-                                results.append({
-                                    "id": info.get("id"),
-                                    "vendor": "Agoda Flights",
-                                    "airline": "추천 항공편",
-                                    "route": f"{origin} - {destination}",
-                                    "price_total": price_val,
-                                    "currency": currency,
-                                    "arrival_time": arrival_time,
-                                    "departure_time": departure_time,
-                                    "duration": duration_str,
-                                    "deeplink_url": None
-                                })
-                            
-                            return results
-                        
-                        # 아직 검색 중인 경우 - 대기 후 재시도
-                        if next_retry_ms > 0:
-                            wait_seconds = next_retry_ms / 1000
-                            await asyncio.sleep(wait_seconds)
-                            retry_count += 1
-                            continue
-                    
-                    break
+                # USD → KRW 변환
+                price_krw = int(price_usd * self.usd_to_krw_rate)
+                print(f"[Agoda] ✅ Price in KRW: {price_krw}")
                 
-                return []
+                # 여정 정보
+                itineraries = bundle.get('itineraries', [])
+                if not itineraries:
+                    continue
                 
-            except:
-                return []
+                itinerary_info = itineraries[0].get('itineraryInfo', {})
+                
+                # Outbound (출국편)
+                outbound_slice = bundle.get('outboundSlice', {})
+                outbound_segments = outbound_slice.get('segments', [])
+                
+                # ✅ 출국편 시간 추출
+                outbound_departure_time = None
+                outbound_arrival_time = None
+                
+                if outbound_segments:
+                    # 첫 번째 구간의 출발 시간
+                    outbound_departure_time = outbound_segments[0].get('departDateTime')
+                    # 마지막 구간의 도착 시간
+                    outbound_arrival_time = outbound_segments[-1].get('arrivalDateTime')
+                
+                # Inbound (입국편) - 왕복인 경우에만
+                inbound_slice = bundle.get('inboundSlice')
+                inbound_departure_time = None
+                inbound_arrival_time = None
+                
+                if inbound_slice:
+                    inbound_segments = inbound_slice.get('segments', [])
+                    if inbound_segments:
+                        # 첫 번째 구간의 출발 시간
+                        inbound_departure_time = inbound_segments[0].get('departDateTime')
+                        # 마지막 구간의 도착 시간
+                        inbound_arrival_time = inbound_segments[-1].get('arrivalDateTime')
+                
+                # 항공사 정보
+                carrier = outbound_segments[0].get('carrierContent', {}) if outbound_segments else {}
+                airline = carrier.get('carrierName', 'Unknown')
+                
+                # 총 소요 시간
+                total_duration = itinerary_info.get('totalTripDuration', 0)
+                
+                # 항공편 딕셔너리 생성
+                flight = {
+                    'price_krw': price_krw,
+                    'price_usd': price_usd,
+                    'airline': airline,
+                    'duration': total_duration,
+                    'outbound_departure_time': outbound_departure_time,  # ✅ 추가
+                    'outbound_arrival_time': outbound_arrival_time,      # ✅ 추가
+                    'inbound_departure_time': inbound_departure_time,    # ✅ 추가
+                    'inbound_arrival_time': inbound_arrival_time,        # ✅ 추가
+                    'origin': origin,
+                    'destination': destination,
+                    'segments': len(outbound_segments)
+                }
+                
+                flights.append(flight)
+                
+            except Exception as e:
+                print(f"[Agoda] Error parsing flight bundle: {e}")
+                continue
+        
+        print(f"[Agoda] ✅ Found {len(flights)} flights")
+        return flights
+        
+    except requests.exceptions.Timeout:
+        print(f"[Agoda] Request timeout")
+        return []
+    except requests.exceptions.RequestException as e:
+        print(f"[Agoda] Request error: {e}")
+        return []
+    except Exception as e:
+        print(f"[Agoda] Unexpected error: {e}")
+        return []
 
     async def _get_place_id(self, client: httpx.AsyncClient, query: str) -> str | None:
         """도시 이름을 Agoda Place ID로 변환"""
