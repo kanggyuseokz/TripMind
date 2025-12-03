@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plane, Calendar, Users, Wallet, MapPin, ShoppingBag, Coffee, Car, Utensils, Home, Loader2, Star, BedDouble, ArrowRight, Trash2, Edit } from 'lucide-react';
+import { Plane, Calendar, Users, Wallet, MapPin, ShoppingBag, Coffee, Car, Utensils, Home, Loader2, Star, BedDouble, ArrowRight, Trash2, Edit, Clock } from 'lucide-react';
 
 // 아이콘 컴포넌트들
 const CalendarIcon = () => <Calendar size={20} />;
@@ -11,6 +11,27 @@ const ShoppingIcon = () => <ShoppingBag size={16} className="text-gray-500"/>;
 const CoffeeIcon = () => <Coffee size={16} className="text-gray-500"/>;
 const CarIcon = () => <Car size={16} className="text-gray-500"/>;
 const UtensilsIcon = () => <Utensils size={16} className="text-gray-500"/>;
+
+// ✅ 시간 포맷팅
+const formatTime = (isoString) => {
+  if (!isoString) return '-';
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  } catch {
+    return '-';
+  }
+};
+
+const formatDate = (isoString) => {
+  if (!isoString) return '-';
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+  } catch {
+    return '-';
+  }
+};
 
 const OverviewCard = ({ title, value, subValue, icon }) => (
   <div className="flex items-start p-5 bg-white rounded-xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
@@ -55,10 +76,7 @@ export default function ViewTripPage() {
   useEffect(() => {
     const fetchTrip = async () => {
       try {
-        // ✅ LoginPage에서 저장한 키 사용
         const token = localStorage.getItem('token');
-        
-        console.log('[ViewTripPage] Token found:', !!token);
         
         if (!token) {
           console.error('No access token found');
@@ -76,8 +94,6 @@ export default function ViewTripPage() {
           }
         });
 
-        console.log(`[ViewTripPage] Response status: ${response.status}`);
-
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           console.error('[ViewTripPage] Error response:', errorData);
@@ -87,7 +103,6 @@ export default function ViewTripPage() {
         const data = await response.json();
         console.log('[ViewTripPage] Trip data received:', data);
         
-        // ✅ 데이터 변환
         const budget = parseInt(data.budget || data.total_cost || 0, 10);
         const partySize = parseInt(data.pax || data.party_size || data.head_count || 1, 10);
         const totalCost = data.budget || data.total_cost || (budget * partySize);
@@ -119,6 +134,9 @@ export default function ViewTripPage() {
           hotels = mcpData.hotel_candidates.slice(0, 1);
         }
 
+        // ✅ 날씨 데이터
+        const weatherByDate = mcpData.weather_by_date || {};
+
         setTripPlan({
           id: data.id,
           trip_summary: data.trip_summary || `${data.destination} 여행`,
@@ -135,7 +153,8 @@ export default function ViewTripPage() {
           ],
           flights: flights,
           hotels: hotels,
-          schedule: data.schedule || []
+          schedule: data.schedule || [],
+          weatherByDate: weatherByDate // ✅ 추가
         });
 
         setLoading(false);
@@ -194,7 +213,6 @@ export default function ViewTripPage() {
       <div className="relative h-80 bg-cover bg-center group" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=1920&q=80)' }}>
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
         
-        {/* ✅ 액션 버튼 */}
         <div className="absolute top-4 right-4 flex gap-2">
           <button
             onClick={() => navigate(`/planner?edit=${id}`)}
@@ -222,7 +240,7 @@ export default function ViewTripPage() {
 
       {/* 메인 컨텐츠 그리드 */}
       <div className="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* 좌측 사이드: 개요 및 차트 */}
+        {/* 좌측 사이드 */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
@@ -250,7 +268,7 @@ export default function ViewTripPage() {
           </div>
         </div>
 
-        {/* 우측 메인: 탭 컨텐츠 */}
+        {/* 우측 메인 */}
         <div className="lg:col-span-2 space-y-8">
           <div className="flex gap-2 border-b border-gray-200 overflow-x-auto">
             {[
@@ -281,6 +299,13 @@ export default function ViewTripPage() {
                       <div className="absolute left-0 top-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md ring-4 ring-white z-10">{dayPlan.day}</div>
                       <div className="mb-4">
                         <h4 className="text-lg font-bold text-gray-900">{dayPlan.date || `Day ${dayPlan.day}`}</h4>
+                        {/* ✅ 날씨 표시 */}
+                        {tripPlan.weatherByDate && tripPlan.weatherByDate[dayPlan.full_date] && (
+                          <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                            <span>🌤️ {tripPlan.weatherByDate[dayPlan.full_date].condition}</span>
+                            <span>{tripPlan.weatherByDate[dayPlan.full_date].temp}°C</span>
+                          </div>
+                        )}
                       </div>
                       <ul className="space-y-3">
                         {dayPlan.events && dayPlan.events.map((event, eIdx) => (
@@ -292,11 +317,17 @@ export default function ViewTripPage() {
                                event.icon === "home" ? <HomeIcon /> : 
                                event.icon === "coffee" ? <CoffeeIcon /> : 
                                event.icon === "car" ? <CarIcon /> : 
-                               <span className="text-sm">●</span>}
+                               <Clock size={18} className="text-gray-400" />}
                             </span>
                             <div className="flex-1">
                               <p className="font-bold text-gray-800 text-sm mb-0.5">{event.time_slot}</p>
                               <p className="text-gray-600 text-sm leading-relaxed">{event.description}</p>
+                              {event.poi_rating && (
+                                <div className="flex items-center gap-1 mt-1 text-xs text-yellow-600">
+                                  <Star size={12} fill="currentColor" />
+                                  <span>{event.poi_rating}</span>
+                                </div>
+                              )}
                             </div>
                           </li>
                         ))}
@@ -315,28 +346,75 @@ export default function ViewTripPage() {
               <div className="space-y-6 animate-in fade-in">
                 {tripPlan.flights && tripPlan.flights.length > 0 ? (
                   <div className="bg-white rounded-2xl overflow-hidden shadow-md border border-gray-200">
-                    <div className="flex flex-col md:flex-row h-full">
-                      <div className="relative md:w-2/5 h-64 md:h-auto bg-gray-100 flex items-center justify-center overflow-hidden">
-                        <img src="https://images.unsplash.com/photo-1436491865332-7a6153217f27?w=800&q=80" alt="Flight" className="absolute inset-0 w-full h-full object-cover" />
+                    <div className="p-8">
+                      <div className="flex items-center gap-4 mb-6">
+                        <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
+                          <Plane size={28} />
+                        </div>
+                        <div>
+                          <h4 className="text-2xl font-bold text-gray-900">{bestFlight.airline || '항공편 정보'}</h4>
+                          <p className="text-gray-500 font-medium">{bestFlight.origin} → {bestFlight.destination}</p>
+                        </div>
                       </div>
-                      <div className="p-8 flex-1 flex flex-col justify-center">
-                        <div className="flex items-center gap-4 mb-6">
-                          <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
-                            <Plane size={28} />
+
+                      {/* ✅ 출입국 시간 표시 */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        {/* 출국 */}
+                        <div className="bg-blue-50 p-4 rounded-xl">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Plane size={16} className="text-blue-600" />
+                            <span className="font-bold text-blue-900">출국</span>
                           </div>
-                          <div>
-                            <h4 className="text-2xl font-bold text-gray-900">{bestFlight.airline || '항공편 정보'}</h4>
-                            <p className="text-gray-500 font-medium">{bestFlight.route || '-'}</p>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <div className="text-xs text-gray-600">출발</div>
+                                <div className="text-lg font-bold text-gray-900">{formatTime(bestFlight.outbound_departure_time)}</div>
+                                <div className="text-xs text-gray-500">{formatDate(bestFlight.outbound_departure_time)}</div>
+                              </div>
+                              <ArrowRight size={20} className="text-gray-400" />
+                              <div className="text-right">
+                                <div className="text-xs text-gray-600">도착</div>
+                                <div className="text-lg font-bold text-gray-900">{formatTime(bestFlight.outbound_arrival_time)}</div>
+                                <div className="text-xs text-gray-500">{formatDate(bestFlight.outbound_arrival_time)}</div>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between pt-6 border-t border-gray-100">
-                          <div>
-                            <p className="text-xs text-gray-400 mb-1">예상 가격 (1인, 왕복)</p>
-                            <p className="text-3xl font-extrabold text-blue-600">
-                              {(bestFlight.price_total || bestFlight.price || 0).toLocaleString()}
-                              <span className="text-lg font-medium text-gray-500 ml-1">원</span>
-                            </p>
+
+                        {/* 입국 */}
+                        {bestFlight.inbound_departure_time && (
+                          <div className="bg-green-50 p-4 rounded-xl">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Plane size={16} className="text-green-600 transform rotate-180" />
+                              <span className="font-bold text-green-900">입국</span>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <div className="text-xs text-gray-600">출발</div>
+                                  <div className="text-lg font-bold text-gray-900">{formatTime(bestFlight.inbound_departure_time)}</div>
+                                  <div className="text-xs text-gray-500">{formatDate(bestFlight.inbound_departure_time)}</div>
+                                </div>
+                                <ArrowRight size={20} className="text-gray-400" />
+                                <div className="text-right">
+                                  <div className="text-xs text-gray-600">도착</div>
+                                  <div className="text-lg font-bold text-gray-900">{formatTime(bestFlight.inbound_arrival_time)}</div>
+                                  <div className="text-xs text-gray-500">{formatDate(bestFlight.inbound_arrival_time)}</div>
+                                </div>
+                              </div>
+                            </div>
                           </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-6 border-t border-gray-100">
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1">예상 가격 (1인, 왕복)</p>
+                          <p className="text-3xl font-extrabold text-blue-600">
+                            {(bestFlight.price_krw || bestFlight.price || 0).toLocaleString()}
+                            <span className="text-lg font-medium text-gray-500 ml-1">원</span>
+                          </p>
                         </div>
                       </div>
                     </div>
