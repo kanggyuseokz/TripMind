@@ -3,6 +3,7 @@ import asyncio
 import re
 import json
 import os
+import httpx  # ✅ 추가
 from datetime import date, datetime, timedelta
 from typing import Dict, Any, List
 import google.generativeai as genai
@@ -391,11 +392,12 @@ Return ONLY valid JSON array:
             e_date = date.fromisoformat(end) if isinstance(end, str) else end
             pax = self._get_safe_value(llm_data, 'party_size', 1)
             
-            # ✅ travel_style 추출
+            # ✅ travel_style, is_domestic 추출
             travel_style = self._get_safe_value(llm_data, 'travel_style', 'sightseeing')
             interests = self._get_safe_value(llm_data, 'interests', ['관광'])
+            is_domestic = self._get_safe_value(llm_data, 'is_domestic', False)
             
-            print(f"[MCP] Travel Style: {travel_style}, Interests: {interests}")
+            print(f"[MCP] Travel Style: {travel_style}, Interests: {interests}, is_domestic: {is_domestic}")
             
             # ✅ budget 처리 (딕셔너리일 경우 amount 추출)
             budget_raw = self._get_safe_value(llm_data, 'budget_per_person') or self._get_safe_value(llm_data, 'budget') or 0
@@ -410,13 +412,33 @@ Return ONLY valid JSON array:
         
         # 병렬 호출
         try:
-            results = await asyncio.gather(
-                self.poi_client.search_pois(dest),
-                self.weather_client.get_weather_forecast(dest, s_date, e_date),
-                self.flight_client.search_flights("ICN", dest, s_date.isoformat(), e_date.isoformat(), pax),
-                self.agoda_client.search_hotels(dest, s_date.isoformat(), e_date.isoformat(), pax),
-                return_exceptions=True
-            )
+            # ✅ 항공편을 위한 IATA 코드 변환
+            async with httpx.AsyncClient(timeout=30.0) as iata_client:
+                dest_iata = await self.agoda_client._get_iata_code(iata_client, dest)
+            
+            # IATA 코드가 없으면 항공편 검색 스킵
+            if not dest_iata:
+                print(f"[MCP] ⚠️ Could not find IATA code for '{dest}', skipping flights")
+                results = await asyncio.gather(
+                    self.poi_client.search_pois(dest, is_domestic),
+                    self.weather_client.get_weather_forecast(dest, s_date, e_date),
+                    asyncio.sleep(0),  # 빈 슬롯 (항공편 대신)
+                    self.agoda_client.search_hotels(dest, s_date.isoformat(), e_date.isoformat(), pax),
+                    return_exceptions=True
+                )
+            else:
+                print(f"[MCP] ✅ IATA code for '{dest}': {dest_iata}")
+                results = await asyncio.gather(
+                    self.poi_client.search_pois(dest, is_domestic),
+                    self.weather_client.get_weather_forecast(dest, s_date, e_date),
+                    # ✅ 동기 함수를 asyncio.to_thread로 감싸서 호출
+                    asyncio.to_thread(
+                        self.agoda_client.search_flights,
+                        "ICN", dest_iata, s_date.isoformat(), e_date.isoformat(), pax
+                    ),
+                    self.agoda_client.search_hotels(dest, s_date.isoformat(), e_date.isoformat(), pax),
+                    return_exceptions=True
+                )
             
             poi_data = results[0] if not isinstance(results[0], Exception) else []
             weather_data = results[1] if not isinstance(results[1], Exception) else {}
