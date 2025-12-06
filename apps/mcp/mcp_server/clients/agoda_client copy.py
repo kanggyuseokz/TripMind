@@ -146,6 +146,238 @@ class AgodaClient:
         self.exchange_service = ExchangeService()
         self._usd_to_krw_rate = None
     
+    def _get_dummy_flights(self, departure="ICN", destination_city="도쿄", destination_code="NRT"):
+        """항공편 더미 데이터 생성"""
+        airlines = [
+            {"code": "KE", "name": "대한항공", "color": "#0066CC"},
+            {"code": "OZ", "name": "아시아나항공", "color": "#FF6B35"}, 
+            {"code": "7C", "name": "제주항공", "color": "#FFD700"},
+            {"code": "LJ", "name": "진에어", "color": "#00B9AE"},
+            {"code": "TW", "name": "티웨이항공", "color": "#E31E24"},
+            {"code": "ZE", "name": "이스타항공", "color": "#8B4513"},
+            {"code": "BX", "name": "에어부산", "color": "#1E90FF"},
+            {"code": "4V", "name": "플라이강원", "color": "#228B22"}
+        ]
+        
+        # 현실적인 가격대 (ICN-NRT 기준)
+        base_prices = [320000, 380000, 420000, 450000, 480000, 520000, 580000, 650000]
+        
+        dummy_flights = []
+        
+        for i in range(10):
+            airline = random.choice(airlines)
+            base_price = random.choice(base_prices)
+            
+            # 출발 시간 (6시~22시)
+            departure_hour = random.randint(6, 22)
+            departure_minute = random.choice([0, 30])
+            
+            # 비행 시간 (1.5~3시간)
+            flight_duration_minutes = random.randint(90, 180)
+            arrival_time = datetime.strptime(f"{departure_hour:02d}:{departure_minute:02d}", "%H:%M") + timedelta(minutes=flight_duration_minutes)
+            
+            # 가격 변동 (±20%)
+            price_variation = random.uniform(0.8, 1.2)
+            final_price = int(base_price * price_variation)
+            
+            flight = {
+                "id": f"{airline['code']}{random.randint(100, 999)}",
+                "vendor": "Agoda",
+                "airline": airline["name"],
+                "airline_code": airline["code"],
+                "route": f"{departure} → {destination_code}",
+                "departure_airport": departure,
+                "arrival_airport": destination_code,
+                "departure_time": f"{departure_hour:02d}:{departure_minute:02d}",
+                "arrival_time": arrival_time.strftime("%H:%M"),
+                "duration": f"{flight_duration_minutes // 60}시간 {flight_duration_minutes % 60}분",
+                "price_total": final_price,
+                "currency": "KRW",
+                "stops": 0 if i < 7 else random.randint(1, 2),  # 대부분 직항
+                "aircraft": random.choice(["B737", "A320", "B777", "A330"]),
+                "available_seats": random.randint(2, 9),
+                "baggage_included": random.choice([True, False]),
+                "meal_included": random.choice([True, False, False]),  # 대부분 불포함
+                "rating": round(random.uniform(3.8, 4.9), 1),
+                "booking_url": f"https://agoda.com/flight/{airline['code']}{random.randint(100, 999)}"
+            }
+            
+            dummy_flights.append(flight)
+        
+        # 가격순 정렬
+        return sorted(dummy_flights, key=lambda x: x['price_total'])
+
+    def _get_dummy_hotels(self, destination_city="도쿄"):
+        """호텔 더미 데이터 생성"""
+        
+        # 도쿄 지역별 호텔 데이터
+        tokyo_hotels = [
+            # 시부야
+            {"name": "시부야 그랜드 호텔", "area": "시부야", "lat": 35.6580, "lng": 139.7016},
+            {"name": "센터 마크 호텔", "area": "시부야", "lat": 35.6598, "lng": 139.7006},
+            {"name": "시부야 스카이 호텔", "area": "시부야", "lat": 35.6601, "lng": 139.7003},
+            
+            # 신주쿠  
+            {"name": "파크 하얏트 도쿄", "area": "신주쿠", "lat": 35.6852, "lng": 139.6953},
+            {"name": "힐튼 도쿄", "area": "신주쿠", "lat": 35.6919, "lng": 139.6903},
+            {"name": "신주쿠 프린스 호텔", "area": "신주쿠", "lat": 35.6943, "lng": 139.7006},
+            
+            # 긴자
+            {"name": "리츠칼튼 도쿄", "area": "긴자", "lat": 35.6732, "lng": 139.7645},
+            {"name": "긴자 그랜드 호텔", "area": "긴자", "lat": 35.6705, "lng": 139.7627},
+            
+            # 도쿄역 근처
+            {"name": "임페리얼 호텔 도쿄", "area": "마루노우치", "lat": 35.6751, "lng": 139.7589},
+            {"name": "도쿄역 호텔", "area": "마루노우치", "lat": 35.6812, "lng": 139.7671},
+            
+            # 아사쿠사
+            {"name": "아사쿠사 뷰 호텔", "area": "아사쿠사", "lat": 35.7101, "lng": 139.7956},
+            {"name": "리치몬드 호텔 아사쿠사", "area": "아사쿠사", "lat": 35.7089, "lng": 139.7934},
+            
+            # 우에노
+            {"name": "우에노 퍼스트 시티 호텔", "area": "우에노", "lat": 35.7074, "lng": 139.7736},
+            
+            # 롯폰기
+            {"name": "그랜드 하얏트 도쿄", "area": "롯폰기", "lat": 35.6654, "lng": 139.7295},
+            {"name": "롯폰기 힐스 호텔", "area": "롯폰기", "lat": 35.6627, "lng": 139.7279},
+            
+            # 하라주쿠/오모테산도
+            {"name": "하라주쿠 퀘스트 호텔", "area": "하라주쿠", "lat": 35.6702, "lng": 139.7026},
+            
+            # 도쿄 베이 에리어
+            {"name": "힐튼 오다이바", "area": "오다이바", "lat": 35.6268, "lng": 139.7762},
+            {"name": "그랜드 니코 도쿄 베이", "area": "오다이바", "lat": 35.6259, "lng": 139.7787},
+            
+            # 스카이트리 근처
+            {"name": "도쿄 스카이트리 타운 호텔", "area": "스미다", "lat": 35.7101, "lng": 139.8107},
+            
+            # 이케부쿠로
+            {"name": "선샤인 시티 프린스 호텔", "area": "이케부쿠로", "lat": 35.7295, "lng": 139.7188},
+            
+            # 비즈니스 호텔
+            {"name": "APA 호텔 신주쿠", "area": "신주쿠", "lat": 35.6950, "lng": 139.7005}
+        ]
+        
+        dummy_hotels = []
+        
+        for i, hotel_data in enumerate(tokyo_hotels):
+            # 호텔 등급별 가격 설정
+            if "하얏트" in hotel_data["name"] or "리츠칼튼" in hotel_data["name"]:
+                base_price = random.randint(450000, 800000)  # 럭셔리
+                rating = random.uniform(4.7, 5.0)
+            elif "힐튼" in hotel_data["name"] or "그랜드" in hotel_data["name"]:
+                base_price = random.randint(280000, 450000)  # 프리미엄
+                rating = random.uniform(4.3, 4.8)
+            elif "APA" in hotel_data["name"]:
+                base_price = random.randint(80000, 150000)   # 비즈니스
+                rating = random.uniform(3.8, 4.3)
+            else:
+                base_price = random.randint(180000, 320000)  # 스탠다드
+                rating = random.uniform(4.0, 4.6)
+            
+            # 가격 변동 (±25%)
+            price_variation = random.uniform(0.75, 1.25)
+            final_price = int(base_price * price_variation)
+            
+            # 호텔 이미지 URL (무료 호텔 이미지)
+            image_urls = [
+                "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400",
+                "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=400", 
+                "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400",
+                "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400",
+                "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=400"
+            ]
+            
+            hotel = {
+                "id": f"hotel_{i+1:03d}",
+                "vendor": "Agoda",
+                "name": hotel_data["name"],
+                "location": hotel_data["area"],
+                "full_address": f"{hotel_data['area']}, 도쿄, 일본",
+                "price": final_price,
+                "currency": "KRW",
+                "rating": round(rating, 1),
+                "review_count": random.randint(150, 2500),
+                "latitude": hotel_data["lat"],
+                "longitude": hotel_data["lng"],
+                "image": random.choice(image_urls),
+                "amenities": self._generate_amenities(),
+                "distance_to_center": round(random.uniform(0.5, 15.0), 1),
+                "wifi_included": random.choice([True, True, True, False]),  # 대부분 포함
+                "breakfast_included": random.choice([True, False, False]),
+                "parking_available": random.choice([True, False]),
+                "gym_available": random.choice([True, False]),
+                "pool_available": random.choice([True, False, False, False]),  # 대부분 없음
+                "room_type": random.choice(["스탠다드", "디럭스", "스위트", "이그제큐티브"]),
+                "check_in": "15:00",
+                "check_out": "11:00",
+                "cancellation": random.choice(["무료 취소", "부분 환불", "환불 불가"]),
+                "booking_url": f"https://agoda.com/hotel/hotel_{i+1:03d}"
+            }
+            
+            dummy_hotels.append(hotel)
+        
+        # 평점순 정렬 후 가격 고려
+        return sorted(dummy_hotels, key=lambda x: (-x['rating'], x['price']))[:21]
+
+    def _generate_amenities(self):
+        """호텔 편의시설 랜덤 생성"""
+        all_amenities = [
+            "무료 WiFi", "에어컨", "24시간 프런트데스크", "금연실", 
+            "엘리베이터", "수하물 보관소", "세탁 서비스", "컨시어지",
+            "레스토랑", "카페", "바/라운지", "룸서비스", 
+            "피트니스센터", "스파", "수영장", "사우나",
+            "주차장", "발렛파킹", "셔틀버스", "렌터카",
+            "비즈니스센터", "회의실", "연회장", "웨딩홀"
+        ]
+        
+        # 3-8개 편의시설 랜덤 선택
+        amenity_count = random.randint(3, 8)
+        return random.sample(all_amenities, amenity_count)
+
+    # 기존 search_flights, search_hotels 함수 수정
+    async def search_flights(self, departure, destination, start_date, end_date, pax=2):
+        """항공편 검색 (더미 데이터 fallback 추가)"""
+        try:
+            # 기존 API 호출 코드
+            response = await self._make_api_request(...)
+            
+            if response.status_code == 429:
+                print(f"[Agoda] ⚠️ API 한도 초과. 더미 항공편 데이터 사용")
+                return self._get_dummy_flights(departure, destination.split()[0], "NRT")
+            
+            if response.status_code == 200:
+                # 기존 성공 처리 코드
+                return self._parse_flights(response.json())
+            
+        except Exception as e:
+            print(f"[Agoda] ❌ 항공편 검색 에러: {e}")
+            print(f"[Agoda] 🔄 더미 데이터로 대체")
+            return self._get_dummy_flights(departure, destination.split()[0], "NRT")
+        
+        return []
+
+    async def search_hotels(self, destination, start_date, end_date, pax=2):
+        """호텔 검색 (더미 데이터 fallback 추가)"""
+        try:
+            # 기존 API 호출 코드  
+            response = await self._make_api_request(...)
+            
+            if response.status_code == 429:
+                print(f"[Agoda] ⚠️ API 한도 초과. 더미 호텔 데이터 사용")
+                return self._get_dummy_hotels(destination)
+            
+            if response.status_code == 200:
+                # 기존 성공 처리 코드
+                return self._parse_hotels(response.json())
+                
+        except Exception as e:
+            print(f"[Agoda] ❌ 호텔 검색 에러: {e}")
+            print(f"[Agoda] 🔄 더미 데이터로 대체")
+            return self._get_dummy_hotels(destination)
+        
+        return []
+    
     def _get_usd_to_krw_rate(self) -> float:
         """USD → KRW 환율 조회 (캐시 사용)"""
         if self._usd_to_krw_rate:

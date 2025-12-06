@@ -13,7 +13,7 @@ class MCPService:
         
         self.base_url = f"{settings.MCP_BASE_URL}/plan/generate"
         # 💡 1. 비동기 클라이언트 대신 동기 클라이언트를 클래스 변수로 선언
-        self.client = httpx.Client(timeout=60.0)
+        self.client = httpx.Client(timeout=300.0)
 
     # 💡 2. 'async def'를 다시 'def' (동기 함수)로 변경
     def fetch_all_data(self, parsed_data: dict, user_style: str) -> dict | None:

@@ -7,8 +7,6 @@ import asyncio
 import google.generativeai as genai
 import requests
 from datetime import date
-import random
-from datetime import datetime, timedelta
 from ..config import settings
 
 
@@ -146,195 +144,6 @@ class AgodaClient:
         self.exchange_service = ExchangeService()
         self._usd_to_krw_rate = None
     
-    # Dummy DATA (추후 삭제 예정)
-    def _get_dummy_flights(self, departure="ICN", destination_city="도쿄", destination_code="NRT"):
-        """항공편 더미 데이터 생성"""
-        airlines = [
-            {"code": "KE", "name": "대한항공", "color": "#0066CC"},
-            {"code": "OZ", "name": "아시아나항공", "color": "#FF6B35"}, 
-            {"code": "7C", "name": "제주항공", "color": "#FFD700"},
-            {"code": "LJ", "name": "진에어", "color": "#00B9AE"},
-            {"code": "TW", "name": "티웨이항공", "color": "#E31E24"},
-            {"code": "ZE", "name": "이스타항공", "color": "#8B4513"},
-            {"code": "BX", "name": "에어부산", "color": "#1E90FF"},
-            {"code": "4V", "name": "플라이강원", "color": "#228B22"}
-        ]
-        
-        # 현실적인 가격대 (ICN-NRT 기준)
-        base_prices = [320000, 380000, 420000, 450000, 480000, 520000, 580000, 650000]
-        
-        dummy_flights = []
-        
-        for i in range(10):
-            airline = random.choice(airlines)
-            base_price = random.choice(base_prices)
-            
-            # 출발 시간 (6시~22시)
-            departure_hour = random.randint(6, 22)
-            departure_minute = random.choice([0, 30])
-            
-            # 비행 시간 (1.5~3시간)
-            flight_duration_minutes = random.randint(90, 180)
-            arrival_time = datetime.strptime(f"{departure_hour:02d}:{departure_minute:02d}", "%H:%M") + timedelta(minutes=flight_duration_minutes)
-            
-            # 가격 변동 (±20%)
-            price_variation = random.uniform(0.8, 1.2)
-            final_price = int(base_price * price_variation)
-            
-            flight = {
-                "id": f"{airline['code']}{random.randint(100, 999)}",
-                "vendor": "Agoda",
-                "airline": airline["name"],
-                "airline_code": airline["code"],
-                "route": f"{departure} → {destination_code}",
-                "departure_airport": departure,
-                "arrival_airport": destination_code,
-                "departure_time": f"{departure_hour:02d}:{departure_minute:02d}",
-                "arrival_time": arrival_time.strftime("%H:%M"),
-                "duration": f"{flight_duration_minutes // 60}시간 {flight_duration_minutes % 60}분",
-                "price_total": final_price,
-                "currency": "KRW",
-                "stops": 0 if i < 7 else random.randint(1, 2),  # 대부분 직항
-                "aircraft": random.choice(["B737", "A320", "B777", "A330"]),
-                "available_seats": random.randint(2, 9),
-                "baggage_included": random.choice([True, False]),
-                "meal_included": random.choice([True, False, False]),  # 대부분 불포함
-                "rating": round(random.uniform(3.8, 4.9), 1),
-                "booking_url": f"https://agoda.com/flight/{airline['code']}{random.randint(100, 999)}"
-            }
-            
-            dummy_flights.append(flight)
-
-        # 가격순 정렬
-        return sorted(dummy_flights, key=lambda x: x['price_total'])
-    def _get_dummy_hotels(self, destination_city="도쿄"):
-        """호텔 더미 데이터 생성"""
-        
-        # 도쿄 지역별 호텔 데이터
-        tokyo_hotels = [
-            # 시부야
-            {"name": "시부야 그랜드 호텔", "area": "시부야", "lat": 35.6580, "lng": 139.7016},
-            {"name": "센터 마크 호텔", "area": "시부야", "lat": 35.6598, "lng": 139.7006},
-            {"name": "시부야 스카이 호텔", "area": "시부야", "lat": 35.6601, "lng": 139.7003},
-            
-            # 신주쿠  
-            {"name": "파크 하얏트 도쿄", "area": "신주쿠", "lat": 35.6852, "lng": 139.6953},
-            {"name": "힐튼 도쿄", "area": "신주쿠", "lat": 35.6919, "lng": 139.6903},
-            {"name": "신주쿠 프린스 호텔", "area": "신주쿠", "lat": 35.6943, "lng": 139.7006},
-            
-            # 긴자
-            {"name": "리츠칼튼 도쿄", "area": "긴자", "lat": 35.6732, "lng": 139.7645},
-            {"name": "긴자 그랜드 호텔", "area": "긴자", "lat": 35.6705, "lng": 139.7627},
-            
-            # 도쿄역 근처
-            {"name": "임페리얼 호텔 도쿄", "area": "마루노우치", "lat": 35.6751, "lng": 139.7589},
-            {"name": "도쿄역 호텔", "area": "마루노우치", "lat": 35.6812, "lng": 139.7671},
-            
-            # 아사쿠사
-            {"name": "아사쿠사 뷰 호텔", "area": "아사쿠사", "lat": 35.7101, "lng": 139.7956},
-            {"name": "리치몬드 호텔 아사쿠사", "area": "아사쿠사", "lat": 35.7089, "lng": 139.7934},
-            
-            # 우에노
-            {"name": "우에노 퍼스트 시티 호텔", "area": "우에노", "lat": 35.7074, "lng": 139.7736},
-            
-            # 롯폰기
-            {"name": "그랜드 하얏트 도쿄", "area": "롯폰기", "lat": 35.6654, "lng": 139.7295},
-            {"name": "롯폰기 힐스 호텔", "area": "롯폰기", "lat": 35.6627, "lng": 139.7279},
-            
-            # 하라주쿠/오모테산도
-            {"name": "하라주쿠 퀘스트 호텔", "area": "하라주쿠", "lat": 35.6702, "lng": 139.7026},
-            
-            # 도쿄 베이 에리어
-            {"name": "힐튼 오다이바", "area": "오다이바", "lat": 35.6268, "lng": 139.7762},
-            {"name": "그랜드 니코 도쿄 베이", "area": "오다이바", "lat": 35.6259, "lng": 139.7787},
-            
-            # 스카이트리 근처
-            {"name": "도쿄 스카이트리 타운 호텔", "area": "스미다", "lat": 35.7101, "lng": 139.8107},
-            
-            # 이케부쿠로
-            {"name": "선샤인 시티 프린스 호텔", "area": "이케부쿠로", "lat": 35.7295, "lng": 139.7188},
-            
-            # 비즈니스 호텔
-            {"name": "APA 호텔 신주쿠", "area": "신주쿠", "lat": 35.6950, "lng": 139.7005}
-        ]
-        
-        dummy_hotels = []
-        
-        for i, hotel_data in enumerate(tokyo_hotels):
-            # 호텔 등급별 가격 설정
-            if "하얏트" in hotel_data["name"] or "리츠칼튼" in hotel_data["name"]:
-                base_price = random.randint(450000, 800000)  # 럭셔리
-                rating = random.uniform(4.7, 5.0)
-            elif "힐튼" in hotel_data["name"] or "그랜드" in hotel_data["name"]:
-                base_price = random.randint(280000, 450000)  # 프리미엄
-                rating = random.uniform(4.3, 4.8)
-            elif "APA" in hotel_data["name"]:
-                base_price = random.randint(80000, 150000)   # 비즈니스
-                rating = random.uniform(3.8, 4.3)
-            else:
-                base_price = random.randint(180000, 320000)  # 스탠다드
-                rating = random.uniform(4.0, 4.6)
-            
-            # 가격 변동 (±25%)
-            price_variation = random.uniform(0.75, 1.25)
-            final_price = int(base_price * price_variation)
-            
-            # 호텔 이미지 URL (무료 호텔 이미지)
-            image_urls = [
-                "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400",
-                "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=400", 
-                "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400",
-                "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400",
-                "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=400"
-            ]
-            
-            hotel = {
-                "id": f"hotel_{i+1:03d}",
-                "vendor": "Agoda",
-                "name": hotel_data["name"],
-                "location": hotel_data["area"],
-                "full_address": f"{hotel_data['area']}, 도쿄, 일본",
-                "price": final_price,
-                "currency": "KRW",
-                "rating": round(rating, 1),
-                "review_count": random.randint(150, 2500),
-                "latitude": hotel_data["lat"],
-                "longitude": hotel_data["lng"],
-                "image": random.choice(image_urls),
-                "amenities": self._generate_amenities(),
-                "distance_to_center": round(random.uniform(0.5, 15.0), 1),
-                "wifi_included": random.choice([True, True, True, False]),  # 대부분 포함
-                "breakfast_included": random.choice([True, False, False]),
-                "parking_available": random.choice([True, False]),
-                "gym_available": random.choice([True, False]),
-                "pool_available": random.choice([True, False, False, False]),  # 대부분 없음
-                "room_type": random.choice(["스탠다드", "디럭스", "스위트", "이그제큐티브"]),
-                "check_in": "15:00",
-                "check_out": "11:00",
-                "cancellation": random.choice(["무료 취소", "부분 환불", "환불 불가"]),
-                "booking_url": f"https://agoda.com/hotel/hotel_{i+1:03d}"
-            }
-            
-            dummy_hotels.append(hotel)
-        
-        # 평점순 정렬 후 가격 고려
-        return sorted(dummy_hotels, key=lambda x: (-x['rating'], x['price']))[:21]
-
-    def _generate_amenities(self):
-        """호텔 편의시설 랜덤 생성"""
-        all_amenities = [
-            "무료 WiFi", "에어컨", "24시간 프런트데스크", "금연실", 
-            "엘리베이터", "수하물 보관소", "세탁 서비스", "컨시어지",
-            "레스토랑", "카페", "바/라운지", "룸서비스", 
-            "피트니스센터", "스파", "수영장", "사우나",
-            "주차장", "발렛파킹", "셔틀버스", "렌터카",
-            "비즈니스센터", "회의실", "연회장", "웨딩홀"
-        ]
-        
-        # 3-8개 편의시설 랜덤 선택
-        amenity_count = random.randint(3, 8)
-        return random.sample(all_amenities, amenity_count)
-    
     def _get_usd_to_krw_rate(self) -> float:
         """USD → KRW 환율 조회 (캐시 사용)"""
         if self._usd_to_krw_rate:
@@ -427,7 +236,7 @@ class AgodaClient:
         """
         try:
             # API 호출
-            url = "https://agoda-com.p.rapidapi.com/flights/search-roundtrip"  # ✅ 올바른 URL
+            url = "https://agoda-com.p.rapidapi.com/flights/search-roundtrip"
             
             querystring = {
                 "origin": origin,
@@ -445,20 +254,67 @@ class AgodaClient:
             
             headers = {
                 "x-rapidapi-key": self.api_key,
-                "x-rapidapi-host": "agoda-com.p.rapidapi.com"  # ✅ 올바른 host
+                "x-rapidapi-host": "agoda-com.p.rapidapi.com"
             }
             
-            # ✅ requests 사용 (원본 그대로)
-            response = requests.get(url, headers=headers, params=querystring, timeout=30)
+            print(f"[Agoda] 🔍 Searching flights: {origin} → {destination} ({depart_date} ~ {return_date})")
+            
+            response = requests.get(url, headers=headers, params=querystring, timeout=60)
             response.raise_for_status()
             
             data = response.json()
             
-            if not data.get('status'):
-                print(f"[Agoda] API returned status=false")
-                return []
+            # ✅ Retry 로직 (비동기 검색 대응)
+            import time
+            retry_info = data.get('retry', {})
+            max_retries = 5
+            retry_count = 0
             
-            bundles = data.get('data', {}).get('bundles', [])
+            while retry_info.get('next') and retry_count < max_retries:
+                retry_delay = retry_info.get('next', 2000) / 1000  # ms → s
+                print(f"[Agoda] ⏳ Search in progress, retrying in {retry_delay}s... ({retry_count + 1}/{max_retries})")
+
+                time.sleep(retry_delay)
+                
+                response = requests.get(url, headers=headers, params=querystring, timeout=60)
+                response.raise_for_status()
+                data = response.json()
+                
+                trips = data.get('trips', [])
+                if trips:
+                    trip = trips[0]
+                    bundles = trip.get('bundles', [])
+                    if trip.get('isCompleted') and len(bundles) > 0:
+                        print(f"[Agoda] ✅ Search completed early! Found {len(bundles)} bundles")
+                        break
+
+                retry_info = data.get('retry', {})
+                retry_count += 1
+            
+            # ✅ 디버깅 로그 추가
+            print(f"[Agoda] 🔍 API Response keys: {list(data.keys())}")
+            print(f"[Agoda] 🔍 Status: {data.get('status')}")
+            print(f"[Agoda] 🔍 Retry info: {data.get('retry')}")
+            
+            if 'trips' in data:
+                trips = data.get('trips', [])
+                print(f"[Agoda] 🔍 Number of trips: {len(trips)}")
+                if trips:
+                    trip0 = trips[0]
+                    print(f"[Agoda] 🔍 Trip[0] keys: {list(trip0.keys())}")
+                    print(f"[Agoda] 🔍 Bundles count: {len(trip0.get('bundles', []))}")
+                    print(f"[Agoda] 🔍 QuickSorted count: {len(trip0.get('quickSortedItineraries', []))}")
+                    print(f"[Agoda] 🔍 isCompleted: {trip0.get('isCompleted')}")
+            
+            trips = data.get('trips', [])
+            if not trips:
+                return []
+
+            trip = trips[0]
+            if not trip.get('isCompleted'):
+                return []
+
+            bundles = trip.get('bundles', [])
             
             if not bundles:
                 print(f"[Agoda] No flight bundles found")
@@ -526,10 +382,10 @@ class AgodaClient:
                         'price_usd': price_usd,
                         'airline': airline,
                         'duration': total_duration,
-                        'outbound_departure_time': outbound_departure_time,  # ✅ 추가
-                        'outbound_arrival_time': outbound_arrival_time,      # ✅ 추가
-                        'inbound_departure_time': inbound_departure_time,    # ✅ 추가
-                        'inbound_arrival_time': inbound_arrival_time,        # ✅ 추가
+                        'outbound_departure_time': outbound_departure_time,
+                        'outbound_arrival_time': outbound_arrival_time,
+                        'inbound_departure_time': inbound_departure_time,
+                        'inbound_arrival_time': inbound_arrival_time,
                         'origin': origin,
                         'destination': destination,
                         'segments': len(outbound_segments)
@@ -575,6 +431,9 @@ class AgodaClient:
             # places가 최상위에 있는 경우 처리
             if "places" in full_response and full_response["places"]:
                 places_list = full_response["places"]
+                if places_list:
+                    first_place = places_list[0]
+                    print(f"[DEBUG] First place: name='{first_place.get('name')}', id={first_place.get('id')}, typeId={first_place.get('typeId')}")
                 if isinstance(places_list, list) and places_list:
                     first_place = places_list[0]
                     place_id = first_place.get("id")
@@ -606,6 +465,7 @@ class AgodaClient:
             place_id = await self._get_place_id(client, destination)
             
             if not place_id:
+                print(f"[Agoda] ❌ Could not find place_id for: {destination}")
                 return []
 
             params = {
@@ -620,6 +480,8 @@ class AgodaClient:
                 "page": 1
             }
 
+            print(f"[Agoda] 🔍 Searching hotels: {destination} (place_id={place_id})")
+
             try:
                 response = await client.get(
                     f"{self.base_url}/hotels/search-overnight",
@@ -627,10 +489,16 @@ class AgodaClient:
                     params=params
                 )
                 
+                print(f"[Agoda] 🔍 Hotel API Status Code: {response.status_code}")
+                
                 if response.status_code != 200:
                     return []
                 
                 response_data = response.json()
+                
+                print(f"[Agoda] 🔍 Hotel Response keys: {list(response_data.keys())}")
+                print(f"[Agoda] 🔍 Hotel Status: {response_data.get('status')}")
+                print(f"[Agoda] 🔍 Hotel Errors: {response_data.get('errors')}")
                 
                 # 에러 체크
                 if response_data.get("status") == False or response_data.get("errors"):
@@ -638,7 +506,10 @@ class AgodaClient:
                 
                 data = response_data.get("data")
                 if data is None:
+                    print(f"[Agoda] ❌ No 'data' field in response")
                     return []
+                
+                print(f"[Agoda] 🔍 Data keys: {list(data.keys())}")
                 
                 # Agoda API 응답 구조 파싱
                 hotels = []
@@ -648,6 +519,8 @@ class AgodaClient:
                     hotels = search_result.get("properties") or city_search.get("properties") or []
                 elif "properties" in data:
                     hotels = data["properties"]
+                
+                print(f"[Agoda] 🔍 Found {len(hotels)} hotels")
                 
                 if not hotels:
                     return []
@@ -737,10 +610,13 @@ class AgodaClient:
                         "has_details": True
                     })
                 
+                print(f"[Agoda] ✅ Returning {len(parsed_hotels)} hotels")
                 return parsed_hotels
                 
             except Exception as e:
                 print(f"[Agoda] ❌ Hotel search error: {e}")
+                import traceback
+                traceback.print_exc()
                 return []
 
     async def get_hotel_details(self, hotel_id: str, start_date: date, end_date: date, pax: int = 2):
