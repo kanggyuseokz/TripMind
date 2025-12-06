@@ -35,18 +35,8 @@ class ExchangeService:
             self.enabled = False
     
     def get_rate(self, currency_code: str, search_date: str = None) -> float:
-        """
-        특정 통화의 매매기준율(KRW) 조회
-        
-        Args:
-            currency_code: 통화 코드 (USD, JPY, EUR 등)
-            search_date: 검색 날짜 (YYYYMMDD 또는 YYYY-MM-DD, 기본값: 오늘)
-        
-        Returns:
-            float: 매매기준율 (KRW)
-        """
         if not self.enabled:
-            return 1300.0  # Fallback
+            return 1300.0
         
         try:
             params = {
@@ -54,7 +44,6 @@ class ExchangeService:
                 "data": self.data_code
             }
             
-            # 날짜 파라미터 추가 (옵션)
             if search_date:
                 params["searchdate"] = search_date
             
@@ -62,12 +51,19 @@ class ExchangeService:
                 self.base_url,
                 params=params,
                 timeout=10,
-                verify=False  # SSL 검증 비활성화
+                verify=False
             )
             response.raise_for_status()
-            rows = response.json()
             
-            # ✅ 응답 검증
+            # ✅ JSON 파싱 에러 방지
+            try:
+                rows = response.json()
+            except ValueError as e:
+                print(f"[ExchangeService] ❌ JSON parse error: {e}")
+                print(f"[ExchangeService] Raw response: {response.text[:200]}")
+                return 1300.0
+            
+            # ✅ 응답 검증 (기존과 동일)
             if not rows or not isinstance(rows, list):
                 print(f"[ExchangeService] ⚠️ Invalid response format")
                 return 1300.0
@@ -77,47 +73,30 @@ class ExchangeService:
                 result_code = rows[0].get("result")
                 error_msg = {
                     2: "DATA 코드 오류",
-                    3: "인증코드 오류",
+                    3: "인증코드 오류", 
                     4: "일일제한횟수 마감"
                 }.get(result_code, f"알 수 없는 오류 ({result_code})")
                 print(f"[ExchangeService] ❌ API Error: {error_msg}")
                 return 1300.0
             
-            # 통화 검색
+            # USD 찾기
             for row in rows:
                 cur_unit = row.get("cur_unit", "")
-                
-                # 통화 코드 매칭 (JPY(100) 같은 형식 처리)
-                if cur_unit.upper().startswith(currency_code.upper()):
+                if cur_unit.upper().startswith("USD"):
                     deal_bas_r = row.get("deal_bas_r", "0")
-                    
-                    # 쉼표 제거 및 float 변환
                     try:
-                        base_rate = float(deal_bas_r.replace(",", ""))
+                        rate = float(deal_bas_r.replace(",", ""))
+                        print(f"[ExchangeService] ✅ USD: {rate} KRW")
+                        return rate
                     except (ValueError, AttributeError):
-                        print(f"[ExchangeService] ⚠️ Invalid rate value: {deal_bas_r}")
                         continue
-                    
-                    # 단위 보정 (JPY(100), IDR(100), ESP(100) 등)
-                    match = re.search(r"\((\d+)\)", cur_unit)
-                    if match:
-                        divisor = int(match.group(1))
-                        if divisor > 0:
-                            base_rate /= divisor
-                    
-                    print(f"[ExchangeService] ✅ {cur_unit}: {base_rate} KRW")
-                    return base_rate
             
-            print(f"[ExchangeService] ⚠️ Currency '{currency_code}' not found")
-            return 1300.0  # Fallback
+            print(f"[ExchangeService] ⚠️ USD not found")
+            return 1300.0
             
-        except requests.RequestException as e:
-            print(f"[ExchangeService] ⚠️ API request failed: {e}")
-            return 1300.0  # Fallback
         except Exception as e:
-            print(f"[ExchangeService] ⚠️ Unexpected error: {e}")
-            return 1300.0  # Fallback
-
+            print(f"[ExchangeService] ❌ Error: {e}")
+            return 1300.0
 
 class AgodaClient:
     """RapidAPI Agoda API 통합 클라이언트"""
@@ -333,7 +312,6 @@ class AgodaClient:
                     
                     # USD → KRW 변환
                     price_krw = int(price_usd * usd_to_krw)
-                    print(f"[Agoda] ✅ Price in KRW: {price_krw}")
                     
                     # 여정 정보
                     itineraries = bundle.get('itineraries', [])
@@ -417,56 +395,80 @@ class AgodaClient:
         clean_query = re.split(r'[/,]', query)[0].strip()
         
         try:
+            print(f"[DEBUG] 🔍 Searching place_id for: {clean_query}")
+            
             response = await client.get(
                 f"{self.base_url}/hotels/auto-complete",
                 headers=self.headers,
                 params={"query": clean_query, "language": "en-us"}
             )
             
+            print(f"[DEBUG] 🔍 Auto-complete response: {response.status_code}")
+            
             if response.status_code != 200:
+                print(f"[DEBUG] ❌ Bad status code: {response.status_code}")
                 return None
             
             full_response = response.json()
+            print(f"[DEBUG] 🔍 Response keys: {list(full_response.keys())}")
             
             # places가 최상위에 있는 경우 처리
             if "places" in full_response and full_response["places"]:
                 places_list = full_response["places"]
-                if places_list:
-                    first_place = places_list[0]
-                    print(f"[DEBUG] First place: name='{first_place.get('name')}', id={first_place.get('id')}, typeId={first_place.get('typeId')}")
+                print(f"[DEBUG] 🔍 Found {len(places_list)} places")
+                
                 if isinstance(places_list, list) and places_list:
                     first_place = places_list[0]
+                    print(f"[DEBUG] First place: name='{first_place.get('name')}', id={first_place.get('id')}, typeId={first_place.get('typeId')}")
+                    
                     place_id = first_place.get("id")
                     type_id = first_place.get("typeId")
+                    print(f"[DEBUG] Raw place_id: {place_id}, type_id: {type_id}")
                     
                     # API 형식: "typeId_id" (예: "1_5085")
                     if type_id is not None and place_id is not None:
-                        return f"{type_id}_{place_id}"
+                        result = f"{type_id}_{place_id}"
+                        print(f"[DEBUG] Returning place_id: {result}")
+                        return result
                     elif place_id:
-                        return str(place_id)
+                        result = str(place_id)
+                        print(f"[DEBUG] Returning place_id (no typeId): {result}")
+                        return result
             
             # data 필드 확인 (Fallback)
             data = full_response.get("data", [])
             if isinstance(data, list) and data:
+                print(f"[DEBUG] 🔍 Trying fallback data field")
                 for item in data:
                     if item.get("id"):
-                        return str(item["id"])
+                        result = str(item["id"])
+                        print(f"[DEBUG] Returning from data: {result}")
+                        return result
                     if "places" in item and item["places"]:
-                        return str(item["places"][0].get("id"))
+                        result = str(item["places"][0].get("id"))
+                        print(f"[DEBUG] Returning from data.places: {result}")
+                        return result
             
+            print(f"[DEBUG] ❌ No place_id found, returning None")
             return None
             
-        except:
+        except Exception as e:
+            print(f"[DEBUG] ❌ _get_place_id error: {e}")
+            import traceback
+            print(f"[DEBUG] ❌ Traceback: {traceback.format_exc()}")
             return None
-
     async def search_hotels(self, destination: str, start_date: date, end_date: date, pax: int = 2):
         """호텔 검색"""
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        print(f"[DEBUG] 🏨 Hotel search called: destination={destination}, dates={start_date}~{end_date}")
+        async with httpx.AsyncClient(timeout=30.0) as client:
             place_id = await self._get_place_id(client, destination)
+            print(f"[DEBUG] 🏨 place_id result: {place_id}")
             
             if not place_id:
                 print(f"[Agoda] ❌ Could not find place_id for: {destination}")
                 return []
+            
+            print(f"[DEBUG] 🏨 Creating params...")
 
             params = {
                 "id": place_id,
@@ -479,16 +481,20 @@ class AgodaClient:
                 "limit": 20,
                 "page": 1
             }
-
-            print(f"[Agoda] 🔍 Searching hotels: {destination} (place_id={place_id})")
+            print(f"[DEBUG] 🏨 About to call API...")
+            print(f"[Agoda] 🔍 Searching hotels: {destination} (place_id={place_id})")  
 
             try:
+                print(f"[DEBUG] 🏨 Making request...")
+                print(f"[DEBUG] 🏨 URL: {self.base_url}/hotels/search-overnight")
+                print(f"[DEBUG] 🏨 Headers: {dict(self.headers)}")
+                print(f"[DEBUG] 🏨 Params: {params}")
                 response = await client.get(
                     f"{self.base_url}/hotels/search-overnight",
                     headers=self.headers,
                     params=params
                 )
-                
+                print(f"[DEBUG] 🏨 Response received: {response.status_code}")
                 print(f"[Agoda] 🔍 Hotel API Status Code: {response.status_code}")
                 
                 if response.status_code != 200:
@@ -498,12 +504,19 @@ class AgodaClient:
                 
                 print(f"[Agoda] 🔍 Hotel Response keys: {list(response_data.keys())}")
                 print(f"[Agoda] 🔍 Hotel Status: {response_data.get('status')}")
-                print(f"[Agoda] 🔍 Hotel Errors: {response_data.get('errors')}")
+
+                if "errors" in response_data:
+                    print(f"[Agoda] 🔍 Hotel Errors: {response_data.get('errors')}")
                 
                 # 에러 체크
-                if response_data.get("status") == False or response_data.get("errors"):
+                if response_data.get("status") == False:
+                    print(f"[DEBUG] 🏨 API returned status=false")
                     return []
                 
+                if response_data.get("errors"):
+                    print(f"[DEBUG] 🏨 API returned errors: {response_data.get('errors')}")
+                    return []
+
                 data = response_data.get("data")
                 if data is None:
                     print(f"[Agoda] ❌ No 'data' field in response")
@@ -513,12 +526,15 @@ class AgodaClient:
                 
                 # Agoda API 응답 구조 파싱
                 hotels = []
-                if "citySearch" in data:
+                if "properties" in data:
+                    hotels = data["properties"]  # ← 예시 응답 구조
+                elif "searchResult" in data:
+                    search_result = data.get("searchResult", {})
+                    hotels = search_result.get("properties", [])
+                elif "citySearch" in data:
                     city_search = data["citySearch"]
                     search_result = city_search.get("searchResult", {})
                     hotels = search_result.get("properties") or city_search.get("properties") or []
-                elif "properties" in data:
-                    hotels = data["properties"]
                 
                 print(f"[Agoda] 🔍 Found {len(hotels)} hotels")
                 
@@ -566,7 +582,6 @@ class AgodaClient:
                             print(f"[Agoda] 💱 Converted {price_val / exchange_rate:.2f} USD → {price_val} KRW")
                         elif price_val > 0:
                             price_val = int(price_val)
-                            print(f"[Agoda] ✅ Price in {price_currency}: {price_val}")
                             
                     except Exception as e:
                         print(f"[Agoda] ❌ Price extraction error for hotel {property_id}: {e}")
@@ -589,12 +604,15 @@ class AgodaClient:
                     img_url = None
                     if "images" in content:
                         images = content["images"]
-                        if isinstance(images, list) and images:
-                            hotel_images = images.get("hotelImages", [])
-                            if hotel_images:
+                        if isinstance(images, dict) and "hotelImages" in images:
+                            hotel_images = images["hotelImages"]
+                            if hotel_images and isinstance(hotel_images, list):
                                 urls = hotel_images[0].get("urls", [])
                                 if urls:
                                     img_url = urls[0].get("value")
+                        elif isinstance(images, list) and images:
+                            # 이미지가 리스트인 경우
+                            img_url = images[0] if isinstance(images[0], str) else images[0].get("url")
                     
                     parsed_hotels.append({
                         "id": property_id,
@@ -616,7 +634,7 @@ class AgodaClient:
             except Exception as e:
                 print(f"[Agoda] ❌ Hotel search error: {e}")
                 import traceback
-                traceback.print_exc()
+                print(f"[DEBUG] 🏨 Traceback: {traceback.format_exc()}")
                 return []
 
     async def get_hotel_details(self, hotel_id: str, start_date: date, end_date: date, pax: int = 2):
@@ -631,7 +649,7 @@ class AgodaClient:
             "language": "ko-kr"
         }
         
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 response = await client.get(url, headers=self.headers, params=params)
                 

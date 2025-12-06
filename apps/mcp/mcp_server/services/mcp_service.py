@@ -436,7 +436,7 @@ Return ONLY valid JSON array:
                         self.agoda_client.search_flights,
                         "ICN", dest_iata, s_date.isoformat(), e_date.isoformat(), pax
                     ),
-                    self.agoda_client.search_hotels(dest, s_date.isoformat(), e_date.isoformat(), pax),
+                    self.agoda_client.search_hotels(dest, s_date, e_date, pax),
                     return_exceptions=True
                 )
             
