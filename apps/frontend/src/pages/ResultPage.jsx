@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { Plane, Calendar, Users, Wallet, MapPin, ShoppingBag, Coffee, Car, Utensils, Home, ArrowRight, Check, Star, ChevronRight, Clock } from 'lucide-react';
+import { Plane, Calendar, Users, Wallet, MapPin, ShoppingBag, Coffee, Car, Utensils, Home, ArrowRight, Check, Star, ChevronRight, Clock, BedDouble } from 'lucide-react';
 
 // [UI 컴포넌트] 진행 단계 표시줄 (Wizard Steps)
 const StepIndicator = ({ currentStep }) => {
@@ -57,7 +57,10 @@ export default function ResultPage() {
   const [flightList, setFlightList] = useState([]);
   const [hotelList, setHotelList] = useState([]);
   const [finalPlan, setFinalPlan] = useState(null);
-  const [tripDates, setTripDates] = useState(null); // ✅ 추가
+  const [tripDates, setTripDates] = useState(null);
+  
+  // 탭 상태 관리 (ViewTripPage 스타일)
+  const [activeTab, setActiveTab] = useState('schedule');
 
   // [핵심] 데이터 찾기 헬퍼 함수
   const findDataKey = (obj, keyToFind) => {
@@ -122,7 +125,7 @@ useEffect(() => {
     setFlightList(flights);
     setHotelList(hotels);
 
-    setFinalPlan({
+    const planData = {
         destination: tripData.destination || "여행지",
         schedule: schedule,
         startDate: dates.start,
@@ -130,7 +133,27 @@ useEffect(() => {
         total_cost: tripData.total_cost || tripData.budget,
         pax: tripData.pax || tripData.party_size || 2,
         weatherByDate: mcpData.weather_by_date || {} // ✅ 날씨 추가
-    });
+    };
+
+    setFinalPlan(planData);
+
+    // ✅ window 객체에 저장용 데이터 준비 (초기)
+    window.currentTripData = {
+        destination: planData.destination,
+        start_date: dates.start || planData.startDate,
+        end_date: dates.end || planData.endDate,
+        pax: planData.pax,
+        total_cost: planData.total_cost,
+        trip_summary: `${planData.destination} 여행`,
+        schedule: planData.schedule,
+        raw_data: {
+            mcp_fetched_data: mcpData,
+            selected_flight: null,
+            selected_hotel: null
+        }
+    };
+    
+    console.log("🔄 [WINDOW DATA] Initial save data:", window.currentTripData);
 
 }, [tripData, navigate]);
 
@@ -138,6 +161,13 @@ useEffect(() => {
   const handleSelectFlight = (flight) => {
     console.log("✅ Selected Flight:", flight);
     setSelectedFlight(flight);
+    
+    // ✅ window 데이터 업데이트
+    if (window.currentTripData) {
+      window.currentTripData.raw_data.selected_flight = flight;
+      console.log("🔄 [WINDOW DATA] Updated with flight:", window.currentTripData);
+    }
+    
     setCurrentStep(1);
     window.scrollTo(0, 0);
   };
@@ -146,6 +176,13 @@ useEffect(() => {
   const handleSelectHotel = (hotel) => {
     console.log("✅ Selected Hotel:", hotel);
     setSelectedHotel(hotel);
+    
+    // ✅ window 데이터 업데이트
+    if (window.currentTripData) {
+      window.currentTripData.raw_data.selected_hotel = hotel;
+      console.log("🔄 [WINDOW DATA] Updated with hotel:", window.currentTripData);
+    }
+    
     setCurrentStep(2);
     window.scrollTo(0, 0);
   };
@@ -302,7 +339,7 @@ useEffect(() => {
   }
 
   // ------------------------------------------------------------------
-  // [렌더링] Step 3: 최종 결과 화면
+  // [렌더링] Step 3: 최종 결과 화면 (ViewTripPage 스타일 탭)
   // ------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -312,7 +349,6 @@ useEffect(() => {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             {finalPlan?.destination} 여행 계획
           </h1>
-          {/* ✅ 여행 기간 표시 */}
           <p className="text-gray-600 flex items-center gap-2">
             <Calendar size={18} />
             {tripDates ? `${tripDates.start} ~ ${tripDates.end}` : '기간 미정'}
@@ -418,82 +454,270 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* 오른쪽: 일정표 */}
+          {/* 오른쪽: 탭 영역 (ViewTripPage 스타일) */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 border border-gray-100">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900">일정표</h2>
+                <h2 className="text-xl font-bold text-gray-900">여행 세부사항</h2>
               </div>
 
-              <div className="flex gap-6 border-b border-gray-200 mb-6 overflow-x-auto">
-                <button className="pb-3 px-1 border-b-2 border-blue-600 text-blue-600 font-medium whitespace-nowrap">
-                  상세 일정
-                </button>
-                <button className="pb-3 px-1 text-gray-500 hover:text-gray-700 transition-colors whitespace-nowrap">
-                  항공권 추천
-                </button>
-                <button className="pb-3 px-1 text-gray-500 hover:text-gray-700 transition-colors whitespace-nowrap">
-                  숙소 추천
-                </button>
+              {/* ✅ 탭 네비게이션 (ViewTripPage 스타일) */}
+              <div className="flex gap-2 border-b border-gray-200 overflow-x-auto mb-6">
+                {[
+                  { id: 'schedule', label: '상세 일정', icon: <Calendar size={18} /> },
+                  { id: 'flight', label: '항공권', icon: <Plane size={18} /> },
+                  { id: 'hotel', label: '호텔', icon: <BedDouble size={18} /> }
+                ].map((tab) => (
+                  <button 
+                    key={tab.id} 
+                    onClick={() => setActiveTab(tab.id)} 
+                    className={`flex items-center gap-2 px-6 py-4 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === tab.id ? 'border-black text-black' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                  >
+                    {tab.icon} {tab.label}
+                  </button>
+                ))}
               </div>
 
-              {(!finalPlan?.schedule || finalPlan.schedule.length === 0) ? (
-                <div className="p-8 bg-red-50 text-red-600 rounded-xl border border-red-200">
-                  <p className="font-bold">⚠️ 일정 데이터가 없습니다.</p>
-                </div>
-              ) : (
-                <div className="space-y-8">
-                  {finalPlan.schedule.map((day, idx) => (
-                    <div key={idx} className="relative pl-8 border-l-2 border-blue-200">
-                      <div className="absolute -left-4 top-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
-                        {day.day}
+              {/* ✅ 탭별 조건부 렌더링 (ViewTripPage 스타일) */}
+              <div className="min-h-[400px]">
+                {/* 상세 일정 탭 */}
+                {activeTab === 'schedule' && (
+                  <div className="animate-in fade-in">
+                    {(!finalPlan?.schedule || finalPlan.schedule.length === 0) ? (
+                      <div className="p-8 bg-red-50 text-red-600 rounded-xl border border-red-200">
+                        <p className="font-bold">⚠️ 일정 데이터가 없습니다.</p>
                       </div>
+                    ) : (
+                      <div className="space-y-8 relative before:absolute before:inset-0 before:left-4 before:top-4 before:w-0.5 before:bg-gray-200 before:h-full">
+                        {finalPlan.schedule.map((day, idx) => (
+                          <div key={idx} className="relative pl-10">
+                            <div className="absolute left-0 top-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md ring-4 ring-white z-10">
+                              {day.day}
+                            </div>
 
-                      <div className="mb-4">
-                        <div className="text-lg font-bold text-gray-900">{day.day}일차</div>
-                        <div className="text-sm text-gray-500">{day.date || day.full_date}</div>
-                        {/* ✅ 날씨 표시 */}
-                        {finalPlan.weatherByDate && finalPlan.weatherByDate[day.full_date] && (
-                          <div className="text-xs text-gray-400 mt-1 flex items-center gap-2">
-                            <span>🌤️ {finalPlan.weatherByDate[day.full_date].condition}</span>
-                            <span>{finalPlan.weatherByDate[day.full_date].temp}°C</span>
-                          </div>
-                        )}
-                      </div>
+                            <div className="mb-4">
+                              <h4 className="text-lg font-bold text-gray-900">{day.date || `Day ${day.day}`}</h4>
+                              {/* ✅ 날씨 표시 */}
+                              {finalPlan.weatherByDate && finalPlan.weatherByDate[day.full_date] && (
+                                <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                                  <span>🌤️ {finalPlan.weatherByDate[day.full_date].condition}</span>
+                                  <span>{finalPlan.weatherByDate[day.full_date].temp}°C</span>
+                                </div>
+                              )}
+                            </div>
 
-                      <div className="space-y-3">
-                        {day.events?.map((event, eIdx) => (
-                          <div key={eIdx} className="bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors">
-                            <div className="flex gap-4">
-                              <div className="flex-shrink-0">
-                                {event.time_slot?.includes('오전') || event.time_slot?.includes('AM') ? <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center text-xl">☀️</div> :
-                                 event.time_slot?.includes('점심') || event.time_slot?.includes('12:') ? <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center text-xl">🍽️</div> :
-                                 event.time_slot?.includes('오후') || event.time_slot?.includes('PM') ? <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-xl">☕</div> :
-                                 event.time_slot?.includes('저녁') || event.time_slot?.includes('18:') ? <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-xl">🌙</div> :
-                                 <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center"><Clock size={20} className="text-gray-400" /></div>}
-                              </div>
+                            <div className="space-y-3">
+                              {day.events?.map((event, eIdx) => (
+                                <div key={eIdx} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                  <div className="flex gap-4">
+                                    <div className="flex-shrink-0">
+                                      {event.time_slot?.includes('오전') ? <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center text-xl">☀️</div> :
+                                       event.time_slot?.includes('점심') ? <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center text-xl">🍽️</div> :
+                                       event.time_slot?.includes('오후') ? <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-xl">☕</div> :
+                                       event.time_slot?.includes('저녁') ? <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-xl">🌙</div> :
+                                       <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center"><Clock size={20} className="text-gray-400" /></div>}
+                                    </div>
 
-                              <div className="flex-1 min-w-0">
-                                <div className="font-bold text-gray-700 text-sm mb-1">{event.time_slot}</div>
-                                <div className="font-bold text-gray-900">{event.place_name || event.poi_name || event.description}</div>
-                                {(event.place_name || event.poi_name) && <div className="text-sm text-gray-500 mt-1">{event.description}</div>}
-                                {event.poi_rating && (
-                                  <div className="flex items-center gap-1 mt-1 text-xs text-yellow-600">
-                                    <Star size={12} fill="currentColor" />
-                                    <span className="font-medium">{event.poi_rating}</span>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-bold text-gray-700 text-sm mb-1">{event.time_slot}</div>
+                                      <div className="font-bold text-gray-900">{event.place_name || event.poi_name || event.description}</div>
+                                      {(event.place_name || event.poi_name) && <div className="text-sm text-gray-500 mt-1">{event.description}</div>}
+                                      {event.poi_rating && (
+                                        <div className="flex items-center gap-1 mt-1 text-xs text-yellow-600">
+                                          <Star size={12} fill="currentColor" />
+                                          <span className="font-medium">{event.poi_rating}</span>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
-                                )}
-                              </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    )}
+                  </div>
+                )}
+
+                {/* 항공권 탭 */}
+                {activeTab === 'flight' && (
+                  <div className="space-y-6 animate-in fade-in">
+                    {selectedFlight ? (
+                      <div className="bg-white rounded-2xl overflow-hidden shadow-md border border-gray-200">
+                        <div className="p-8">
+                          <div className="flex items-center gap-4 mb-6">
+                            <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
+                              <Plane size={28} />
+                            </div>
+                            <div>
+                              <h4 className="text-2xl font-bold text-gray-900">{selectedFlight.airline || '항공편 정보'}</h4>
+                              <p className="text-gray-500 font-medium">{selectedFlight.origin} → {selectedFlight.destination}</p>
+                            </div>
+                          </div>
+
+                          {/* ✅ 출입국 시간 표시 */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            {/* 출국 */}
+                            <div className="bg-blue-50 p-4 rounded-xl">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Plane size={16} className="text-blue-600" />
+                                <span className="font-bold text-blue-900">출국</span>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                  <div>
+                                    <div className="text-xs text-gray-600">출발</div>
+                                    <div className="text-lg font-bold text-gray-900">{formatTime(selectedFlight.outbound_departure_time)}</div>
+                                    <div className="text-xs text-gray-500">{formatDate(selectedFlight.outbound_departure_time)}</div>
+                                  </div>
+                                  <ArrowRight size={20} className="text-gray-400" />
+                                  <div className="text-right">
+                                    <div className="text-xs text-gray-600">도착</div>
+                                    <div className="text-lg font-bold text-gray-900">{formatTime(selectedFlight.outbound_arrival_time)}</div>
+                                    <div className="text-xs text-gray-500">{formatDate(selectedFlight.outbound_arrival_time)}</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 입국 */}
+                            {selectedFlight.inbound_departure_time && (
+                              <div className="bg-green-50 p-4 rounded-xl">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Plane size={16} className="text-green-600 transform rotate-180" />
+                                  <span className="font-bold text-green-900">입국</span>
+                                </div>
+                                <div className="space-y-2">
+                                  <div className="flex justify-between items-center">
+                                    <div>
+                                      <div className="text-xs text-gray-600">출발</div>
+                                      <div className="text-lg font-bold text-gray-900">{formatTime(selectedFlight.inbound_departure_time)}</div>
+                                      <div className="text-xs text-gray-500">{formatDate(selectedFlight.inbound_departure_time)}</div>
+                                    </div>
+                                    <ArrowRight size={20} className="text-gray-400" />
+                                    <div className="text-right">
+                                      <div className="text-xs text-gray-600">도착</div>
+                                      <div className="text-lg font-bold text-gray-900">{formatTime(selectedFlight.inbound_arrival_time)}</div>
+                                      <div className="text-xs text-gray-500">{formatDate(selectedFlight.inbound_arrival_time)}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between pt-6 border-t border-gray-100">
+                            <div>
+                              <p className="text-xs text-gray-400 mb-1">예상 가격 (1인, 왕복)</p>
+                              <p className="text-3xl font-extrabold text-blue-600">
+                                {(selectedFlight.price_krw || selectedFlight.price || 0).toLocaleString()}
+                                <span className="text-lg font-medium text-gray-500 ml-1">원</span>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center text-gray-500 py-10">항공편 정보가 없습니다.</div>
+                    )}
+                  </div>
+                )}
+
+                {/* 호텔 탭 */}
+                {activeTab === 'hotel' && (
+                  <div className="space-y-6 animate-in fade-in">
+                    {selectedHotel ? (
+                      <div className="bg-white rounded-2xl overflow-hidden shadow-md border border-gray-200">
+                        <div className="flex flex-col md:flex-row h-full">
+                          <div className="relative md:w-2/5 h-64 md:h-auto overflow-hidden">
+                            <img src={selectedHotel.image || "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80"} alt={selectedHotel.name} className="absolute inset-0 w-full h-full object-cover" />
+                            <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg text-sm font-bold text-yellow-600 flex items-center gap-1">
+                              <Star size={16} fill="currentColor" /> {selectedHotel.rating || 0}
+                            </div>
+                          </div>
+                          <div className="p-8 flex-1 flex flex-col justify-center">
+                            <div className="mb-6">
+                              <h4 className="text-3xl font-bold text-gray-900 mb-2">{selectedHotel.name || '숙소 정보'}</h4>
+                              <p className="text-gray-500 flex items-center gap-1.5">
+                                <MapPin size={16} /> {selectedHotel.location || '위치 미정'}
+                              </p>
+                            </div>
+                            <div className="flex items-center justify-between pt-6 border-t border-gray-100">
+                              <div>
+                                <p className="text-xs text-gray-400 mb-1">1박 기준 (세금 포함)</p>
+                                <p className="text-3xl font-extrabold text-blue-600">
+                                  {(selectedHotel.price || 0).toLocaleString()}
+                                  <span className="text-lg font-medium text-gray-500 ml-1">원</span>
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center text-gray-500 py-10">숙소 정보가 없습니다.</div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* ✅ 저장 버튼 (Header와 동일한 로직) */}
+        <div className="text-center mt-8 mb-4 flex gap-4 justify-center">
+          <button 
+            onClick={() => navigate('/saved')} 
+            className="bg-gray-200 text-gray-700 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-300 transition-all"
+          >
+            목록으로
+          </button>
+          <button 
+            onClick={async () => {
+              try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                  alert('로그인이 필요합니다.');
+                  navigate('/login');
+                  return;
+                }
+
+                // ✅ window 객체의 최신 데이터 사용 (Header와 동일)
+                const tripData = window.currentTripData;
+                if (!tripData) {
+                  alert('저장할 여행 데이터가 없습니다.');
+                  return;
+                }
+
+                console.log("💾 [PAGE SAVE] Using window data:", tripData);
+
+                const response = await fetch('http://127.0.0.1:8080/api/trip/save', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(tripData)
+                });
+
+                if (response.ok) {
+                  alert('여행 계획이 저장되었습니다! 🎉');
+                  navigate('/saved');
+                } else {
+                  const errorData = await response.json().catch(() => ({}));
+                  console.error('💾 [PAGE SAVE ERROR]:', errorData);
+                  alert('저장에 실패했습니다: ' + (errorData.error || '알 수 없는 오류'));
+                }
+              } catch (error) {
+                console.error('💾 [PAGE SAVE ERROR]:', error);
+                alert('저장 중 오류가 발생했습니다.');
+              }
+            }}
+            className="bg-gray-900 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-gray-800 transition-all"
+          >
+            여행 계획 저장하기
+          </button>
         </div>
       </div>
     </div>

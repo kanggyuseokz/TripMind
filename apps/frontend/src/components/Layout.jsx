@@ -32,7 +32,8 @@ export default function Layout() {
       return;
     }
 
-    const tripData = location.state?.tripData;
+    const tripData = window.currentTripData || location.state?.tripData;
+    
     if (!tripData) {
       alert("저장할 여행 데이터가 없습니다.");
       return;

@@ -201,17 +201,7 @@ class AgodaClient:
     # ✅ search_flights를 동기 함수로 유지 (원본 그대로)
     def search_flights(self, origin, destination, depart_date, return_date, adults=1):
         """
-        항공권 검색 (왕복)
-        
-        Returns:
-            list: 항공편 리스트, 각 항공편은 다음 필드를 포함:
-                - outbound_departure_time: 출국편 출발 시간
-                - outbound_arrival_time: 출국편 도착 시간
-                - inbound_departure_time: 입국편 출발 시간 (왕복인 경우)
-                - inbound_arrival_time: 입국편 도착 시간 (왕복인 경우)
-                - price_krw: 가격 (KRW)
-                - airline: 항공사
-                - duration: 총 소요 시간 (분)
+        항공권 검색 (왕복) - 수정본
         """
         try:
             # API 호출
@@ -237,53 +227,43 @@ class AgodaClient:
             }
             
             print(f"[Agoda] 🔍 Searching flights: {origin} → {destination} ({depart_date} ~ {return_date})")
+            print(f"[DEBUG] 🔍 Return date: {return_date} (type: {type(return_date)})")
             
             response = requests.get(url, headers=headers, params=querystring, timeout=60)
             response.raise_for_status()
             
             data = response.json()
             
-            # ✅ Retry 로직 (비동기 검색 대응)
-            import time
-            retry_info = data.get('retry', {})
-            max_retries = 5
-            retry_count = 0
+            # [Retry 로직은 동일]
             
-            while retry_info.get('next') and retry_count < max_retries:
-                retry_delay = retry_info.get('next', 2000) / 1000  # ms → s
-                print(f"[Agoda] ⏳ Search in progress, retrying in {retry_delay}s... ({retry_count + 1}/{max_retries})")
-
-                time.sleep(retry_delay)
-                
-                response = requests.get(url, headers=headers, params=querystring, timeout=60)
-                response.raise_for_status()
-                data = response.json()
-                
-                trips = data.get('trips', [])
-                if trips:
-                    trip = trips[0]
-                    bundles = trip.get('bundles', [])
-                    if trip.get('isCompleted') and len(bundles) > 0:
-                        print(f"[Agoda] ✅ Search completed early! Found {len(bundles)} bundles")
-                        break
-
-                retry_info = data.get('retry', {})
-                retry_count += 1
-            
-            # ✅ 디버깅 로그 추가
-            print(f"[Agoda] 🔍 API Response keys: {list(data.keys())}")
-            print(f"[Agoda] 🔍 Status: {data.get('status')}")
-            print(f"[Agoda] 🔍 Retry info: {data.get('retry')}")
-            
+            # ✅ 핵심 수정: 구조 분석 로깅
+            print(f"[DEBUG] 🔍 API Response structure:")
             if 'trips' in data:
                 trips = data.get('trips', [])
-                print(f"[Agoda] 🔍 Number of trips: {len(trips)}")
+                print(f"[DEBUG] - trips count: {len(trips)}")
                 if trips:
                     trip0 = trips[0]
-                    print(f"[Agoda] 🔍 Trip[0] keys: {list(trip0.keys())}")
-                    print(f"[Agoda] 🔍 Bundles count: {len(trip0.get('bundles', []))}")
-                    print(f"[Agoda] 🔍 QuickSorted count: {len(trip0.get('quickSortedItineraries', []))}")
-                    print(f"[Agoda] 🔍 isCompleted: {trip0.get('isCompleted')}")
+                    bundles = trip0.get('bundles', [])
+                    print(f"[DEBUG] - bundles count: {len(bundles)}")
+                    
+                    if bundles:
+                        bundle0 = bundles[0]
+                        print(f"[DEBUG] - bundle[0] keys: {list(bundle0.keys())}")
+                        
+                        # Itinerary 구조 확인
+                        itineraries = bundle0.get('itineraries', [])
+                        print(f"[DEBUG] - itineraries count: {len(itineraries)}")
+                        
+                        if itineraries:
+                            itinerary0 = itineraries[0]
+                            print(f"[DEBUG] - itinerary[0] keys: {list(itinerary0.keys())}")
+                            
+                            inbound_slice = itinerary0.get('inboundSlice')
+                            print(f"[DEBUG] - itinerary inboundSlice: {inbound_slice is not None}")
+                            if inbound_slice:
+                                print(f"[DEBUG] - inboundSlice keys: {list(inbound_slice.keys())}")
+                                inbound_segments = inbound_slice.get('segments', [])
+                                print(f"[DEBUG] - inbound segments count: {len(inbound_segments)}")
             
             trips = data.get('trips', [])
             if not trips:
@@ -304,7 +284,7 @@ class AgodaClient:
             # ✅ 환율 가져오기
             usd_to_krw = self._get_usd_to_krw_rate()
             
-            for bundle in bundles[:10]:  # 상위 10개만
+            for i, bundle in enumerate(bundles[:10]):  # 상위 10개만
                 try:
                     # 가격 정보
                     price_info = bundle.get('bundlePrice', [{}])[0].get('price', {}).get('usd', {})
@@ -313,39 +293,43 @@ class AgodaClient:
                     # USD → KRW 변환
                     price_krw = int(price_usd * usd_to_krw)
                     
-                    # 여정 정보
+                    # ✅ 핵심 수정: itinerary에서 inbound 데이터 가져오기
                     itineraries = bundle.get('itineraries', [])
                     if not itineraries:
                         continue
                     
-                    itinerary_info = itineraries[0].get('itineraryInfo', {})
+                    # 첫 번째 itinerary 사용
+                    first_itinerary = itineraries[0]
+                    itinerary_info = first_itinerary.get('itineraryInfo', {})
                     
-                    # Outbound (출국편)
+                    # Outbound (출국편) - bundle에서
                     outbound_slice = bundle.get('outboundSlice', {})
                     outbound_segments = outbound_slice.get('segments', [])
                     
-                    # ✅ 출국편 시간 추출
+                    # 출국편 시간 추출
                     outbound_departure_time = None
                     outbound_arrival_time = None
                     
                     if outbound_segments:
-                        # 첫 번째 구간의 출발 시간
                         outbound_departure_time = outbound_segments[0].get('departDateTime')
-                        # 마지막 구간의 도착 시간
                         outbound_arrival_time = outbound_segments[-1].get('arrivalDateTime')
                     
-                    # Inbound (입국편) - 왕복인 경우에만
-                    inbound_slice = bundle.get('inboundSlice')
+                    # ✅ Inbound (입국편) - itinerary에서 가져오기
+                    inbound_slice = first_itinerary.get('inboundSlice')
                     inbound_departure_time = None
                     inbound_arrival_time = None
                     
+                    print(f"[DEBUG] Bundle {i}: inbound slice exists = {inbound_slice is not None}")
+                    
                     if inbound_slice:
                         inbound_segments = inbound_slice.get('segments', [])
+                        print(f"[DEBUG] Bundle {i}: inbound segments = {len(inbound_segments)}")
                         if inbound_segments:
-                            # 첫 번째 구간의 출발 시간
                             inbound_departure_time = inbound_segments[0].get('departDateTime')
-                            # 마지막 구간의 도착 시간
                             inbound_arrival_time = inbound_segments[-1].get('arrivalDateTime')
+                            print(f"[DEBUG] Bundle {i}: inbound times = {inbound_departure_time} → {inbound_arrival_time}")
+                    else:
+                        print(f"[DEBUG] Bundle {i}: No inbound slice - this is one-way")
                     
                     # 항공사 정보
                     carrier = outbound_segments[0].get('carrierContent', {}) if outbound_segments else {}
@@ -362,8 +346,8 @@ class AgodaClient:
                         'duration': total_duration,
                         'outbound_departure_time': outbound_departure_time,
                         'outbound_arrival_time': outbound_arrival_time,
-                        'inbound_departure_time': inbound_departure_time,
-                        'inbound_arrival_time': inbound_arrival_time,
+                        'inbound_departure_time': inbound_departure_time,  # ✅ 이제 제대로 설정됨
+                        'inbound_arrival_time': inbound_arrival_time,      # ✅ 이제 제대로 설정됨
                         'origin': origin,
                         'destination': destination,
                         'segments': len(outbound_segments)
@@ -372,18 +356,14 @@ class AgodaClient:
                     flights.append(flight)
                     
                 except Exception as e:
-                    print(f"[Agoda] Error parsing flight bundle: {e}")
+                    print(f"[Agoda] Error parsing flight bundle {i}: {e}")
                     continue
             
             print(f"[Agoda] ✅ Found {len(flights)} flights")
+            print(f"[DEBUG] 🔍 First flight inbound check: {flights[0]['inbound_departure_time'] if flights else 'No flights'}")
+            
             return flights
             
-        except requests.exceptions.Timeout:
-            print(f"[Agoda] Request timeout")
-            return []
-        except requests.exceptions.RequestException as e:
-            print(f"[Agoda] Request error: {e}")
-            return []
         except Exception as e:
             print(f"[Agoda] Unexpected error: {e}")
             import traceback

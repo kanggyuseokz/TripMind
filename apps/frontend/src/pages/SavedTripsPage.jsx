@@ -45,6 +45,34 @@ const calculateDuration = (startDate, endDate) => {
   return `${nights}박 ${days}일`;
 };
 
+// 날짜 관련 함수
+const formatTripDates = (startDate, endDate) => {
+  if (!startDate || !endDate) return '날짜 미정';
+  
+  try {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // 기간 계산
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const nights = diffDays;
+    const days = nights + 1;
+    
+    // 날짜 포맷팅
+    const formatDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}년 ${month}월 ${day}일`;
+    };
+    
+    return `${formatDate(start)} ~ ${formatDate(end)} (${nights}박 ${days}일)`;
+  } catch (error) {
+    return '날짜 미정';
+  }
+};
+
 export default function SavedTripsPage() {
   const navigate = useNavigate();
   const [savedTrips, setSavedTrips] = useState([]);
@@ -213,6 +241,7 @@ export default function SavedTripsPage() {
                       <h3 className="text-xl font-bold truncate pr-4">{trip.trip_summary}</h3>
                     </div>
                   </div>
+                  
                   
                   {/* 정보 영역 */}
                   <div className="p-5">
