@@ -18,6 +18,13 @@ class MCPService:
         self.poi_client = PoiClient()
         self.weather_client = WeatherClient()
         self.agoda_client = AgodaClient()
+        self.valid_styles = {
+            'foodie': ['맛집', '음식', '미식', '식도락', '요리', '레스토랑', 'restaurant', 'food'],
+            'relaxation': ['휴양', '휴식', '느긋', '여유', '스파', '힐링', 'spa', 'relax'],
+            'activity': ['액티비티', '체험', '스포츠', '등산', '다이빙', '서핑', 'activity', 'sport'],
+            'shopping': ['쇼핑', '면세점', '구매', '백화점', '아울렛', 'shopping', 'mall'],
+            'sightseeing': ['관광', '여행', '구경', '투어', '명소', '랜드마크', 'tour', 'sight']
+        }
         
         # ✅ LLM 모델 초기화
         try:
@@ -82,11 +89,9 @@ class MCPService:
         Returns:
             str: 해당 스타일의 MD 파일 내용
         """
-        # 유효한 스타일 목록
-        valid_styles = ['relaxation', 'sightseeing', 'foodie', 'activity', 'shopping']
         
         # 기본값 처리
-        if travel_style not in valid_styles:
+        if travel_style not in self.valid_styles:
             print(f"[MCP] ⚠️ Invalid style '{travel_style}', using 'sightseeing'")
             travel_style = 'sightseeing'
         
