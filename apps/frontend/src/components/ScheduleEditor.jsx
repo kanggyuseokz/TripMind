@@ -35,6 +35,7 @@ const ScheduleEditor = ({ schedule, pois = [], onScheduleChange }) => {
 
   // 드래그 시작
   const handleDragStart = (e, dayIndex, eventIndex) => {
+    console.log("🔍 [DRAG] 드래그 시작:", dayIndex, eventIndex); // ← 추가
     draggedEvent.current = { dayIndex, eventIndex };
     e.dataTransfer.effectAllowed = 'move';
     e.target.style.opacity = '0.5';
@@ -42,6 +43,7 @@ const ScheduleEditor = ({ schedule, pois = [], onScheduleChange }) => {
 
   // 드래그 종료
   const handleDragEnd = (e) => {
+    console.log("🔍 [DRAG] 드래그 종료"); // ← 추가
     e.target.style.opacity = '1';
     draggedEvent.current = null;
   };
@@ -54,15 +56,22 @@ const ScheduleEditor = ({ schedule, pois = [], onScheduleChange }) => {
 
   // 드롭 처리 (시간대 변경)
   const handleDrop = (e, targetDay, targetTime) => {
+    console.log("🔍 [DRAG] 드롭:", targetDay, targetTime);
     e.preventDefault();
     
-    if (!draggedEvent.current) return;
+    if (!draggedEvent.current) {
+      console.log("❌ [DRAG] draggedEvent.current가 null");
+      return;
+    }
 
     const { dayIndex, eventIndex } = draggedEvent.current;
+    console.log("🔍 [DRAG] 드래그된 이벤트:", dayIndex, eventIndex);
+    
     const newSchedule = [...editingSchedule];
     
     // 원래 이벤트 제거
     const movedEvent = newSchedule[dayIndex].events.splice(eventIndex, 1)[0];
+    console.log("🔍 [DRAG] 이동할 이벤트:", movedEvent);
     
     // 새 시간대로 이벤트 이동
     movedEvent.time_slot = targetTime;
@@ -74,6 +83,7 @@ const ScheduleEditor = ({ schedule, pois = [], onScheduleChange }) => {
     if (insertIndex >= 0) {
       // 같은 시간대에 다른 이벤트가 있으면 그 앞에 삽입
       targetEvents.splice(insertIndex, 0, movedEvent);
+      console.log("🔍 [DRAG] 기존 시간대에 삽입 (index:", insertIndex, ")");
     } else {
       // 해당 시간대가 없으면 적절한 위치에 삽입
       const timeOrder = timeSlots.indexOf(targetTime);
@@ -86,8 +96,10 @@ const ScheduleEditor = ({ schedule, pois = [], onScheduleChange }) => {
       }
       
       targetEvents.splice(insertPos, 0, movedEvent);
+      console.log("🔍 [DRAG] 새 시간대에 삽입 (insertPos:", insertPos, ")");
     }
 
+    console.log("🔍 [DRAG] 업데이트된 스케줄:", newSchedule);
     setEditingSchedule(newSchedule);
     onScheduleChange(newSchedule);
   };
@@ -192,13 +204,18 @@ const ScheduleEditor = ({ schedule, pois = [], onScheduleChange }) => {
                   draggable
                   onDragStart={(e) => handleDragStart(e, dayIndex, eventIndex)}
                   onDragEnd={handleDragEnd}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => {
+                    console.log("🔍 [DRAG] 이벤트에 드롭:", dayIndex, event.time_slot);
+                    handleDrop(e, dayIndex, event.time_slot);
+                  }}
                 >
-                  {/* 시간 */}
-                  <select
-                    className="w-20 text-sm border-0 bg-transparent font-medium text-blue-600"
-                    value={event.time_slot}
-                    onChange={(e) => handleEventEdit(dayIndex, eventIndex, 'time_slot', e.target.value)}
-                  >
+                    {/* 시간 */}
+                    <select
+                      className="w-20 text-sm border-0 bg-transparent font-medium text-blue-600"
+                      value={event.time_slot}
+                      onChange={(e) => handleEventEdit(dayIndex, eventIndex, 'time_slot', e.target.value)}
+                    >
                     {timeSlots.map(slot => (
                       <option key={slot} value={slot}>{slot}</option>
                     ))}

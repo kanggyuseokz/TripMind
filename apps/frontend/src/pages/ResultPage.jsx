@@ -163,6 +163,24 @@ useEffect(() => {
   const handleSelectFlight = (flight) => {
     console.log("✅ Selected Flight:", flight);
     setSelectedFlight(flight);
+    
+    // ✅ 실시간 비용 계산 및 업데이트 (기타 여행비 포함)
+    const flightCost = flight?.price_krw || flight?.price || 0;
+    const nights = (() => {
+      if (!tripDates?.start || !tripDates?.end) return 1;
+      const start = new Date(tripDates.start);
+      const end = new Date(tripDates.end);
+      return Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+    })();
+    const hotelCost = (selectedHotel?.price || 0) * nights;
+    
+    // ✅ 기타 여행비 계산 (식비, 교통비, 입장료 등)
+    const dailyExpenses = calculateDailyExpenses(userTravelStyle, finalPlan?.destination);
+    const otherCosts = dailyExpenses * nights;
+    const totalCost = flightCost + hotelCost + otherCosts;
+    
+    console.log("💰 [COST UPDATE] Flight:", flightCost, "Hotel:", hotelCost, "Other:", otherCosts, "Total:", totalCost);
+    
     if (finalPlan?.schedule && finalPlan.schedule.length > 0) {
       const adjustedSchedule = adjustScheduleWithFlightTimes(finalPlan.schedule, flight);
       setFinalPlan(prev => ({
@@ -173,13 +191,23 @@ useEffect(() => {
       if (window.currentTripData) {
         window.currentTripData.schedule = adjustedSchedule;
         window.currentTripData.raw_data.selected_flight = flight;
-        console.log("💾 [WINDOW DATA] Schedule updated with flight times");
+        // ✅ 비용 정보 업데이트 (기타 비용 포함)
+        window.currentTripData.selected_flight_cost = flightCost;
+        window.currentTripData.selected_hotel_cost = hotelCost;
+        window.currentTripData.other_costs = otherCosts;
+        window.currentTripData.total_cost = totalCost;
+        console.log("💾 [WINDOW DATA] Schedule & cost updated:", window.currentTripData);
       }
       console.log("✅ [FLIGHT SELECT] 스케줄 조정 완료!");
     } else {
       console.warn("⚠️ [FLIGHT SELECT] 조정할 스케줄이 없습니다.");
       if (window.currentTripData) {
-        window.currentTripDate.raw_data.selectedFlight = flight;
+        window.currentTripData.raw_data.selected_flight = flight;
+        // ✅ 비용 정보 업데이트 (기타 비용 포함)
+        window.currentTripData.selected_flight_cost = flightCost;
+        window.currentTripData.selected_hotel_cost = hotelCost;
+        window.currentTripData.other_costs = otherCosts;
+        window.currentTripData.total_cost = totalCost;
       }
     }
     
@@ -192,10 +220,32 @@ useEffect(() => {
     console.log("✅ Selected Hotel:", hotel);
     setSelectedHotel(hotel);
     
+    // ✅ 실시간 비용 계산 및 업데이트 (기타 여행비 포함)
+    const flightCost = selectedFlight?.price_krw || selectedFlight?.price || 0;
+    const nights = (() => {
+      if (!tripDates?.start || !tripDates?.end) return 1;
+      const start = new Date(tripDates.start);
+      const end = new Date(tripDates.end);
+      return Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+    })();
+    const hotelCost = (hotel?.price || 0) * nights;
+    
+    // ✅ 기타 여행비 계산 (식비, 교통비, 입장료 등)
+    const dailyExpenses = calculateDailyExpenses(userTravelStyle, finalPlan?.destination);
+    const otherCosts = dailyExpenses * nights;
+    const totalCost = flightCost + hotelCost + otherCosts;
+    
+    console.log("💰 [COST UPDATE] Flight:", flightCost, "Hotel:", hotelCost, "Other:", otherCosts, "Total:", totalCost);
+    
     // ✅ window 데이터 업데이트
     if (window.currentTripData) {
       window.currentTripData.raw_data.selected_hotel = hotel;
-      console.log("🔄 [WINDOW DATA] Updated with hotel:", window.currentTripData);
+      // ✅ 비용 정보 업데이트 (기타 비용 포함)
+      window.currentTripData.selected_flight_cost = flightCost;
+      window.currentTripData.selected_hotel_cost = hotelCost;
+      window.currentTripData.other_costs = otherCosts;
+      window.currentTripData.total_cost = totalCost;
+      console.log("🔄 [WINDOW DATA] Updated with hotel & cost:", window.currentTripData);
     }
     
     setCurrentStep(2);
@@ -205,12 +255,94 @@ useEffect(() => {
   // 가격 포맷팅
   const formatPrice = (price) => (price ? Number(price).toLocaleString() : '0');
 
-  // 활동 비율 데이터
-  const activityData = [
-    { name: '관광', value: 40, color: '#6366F1' },
-    { name: '쇼핑', value: 30, color: '#A855F7' },
-    { name: '휴식', value: 30, color: '#EC4899' }
-  ];
+  // ✅ travel_style별 활동 비율 계산
+  const getActivityDataByStyle = (travelStyle) => {
+    // 🔄 영어 스타일명을 한국어로 매핑
+    const englishToKorean = {
+      'sightseeing': '관광형',
+      'relaxation': '휴양형',
+      'activity': '액티비티형', 
+      'foodie': '미식형',
+      'shopping': '쇼핑형'
+    };
+    
+    // 영어 스타일명이 들어오면 한국어로 변환
+    const mappedStyle = englishToKorean[travelStyle] || travelStyle;
+    
+    const styleMap = {
+      '휴양형': [
+        { name: '휴식', value: 60, color: '#EC4899' },
+        { name: '관광', value: 25, color: '#6366F1' },
+        { name: '쇼핑', value: 15, color: '#A855F7' }
+      ],
+      '관광형': [
+        { name: '관광', value: 70, color: '#6366F1' },
+        { name: '휴식', value: 20, color: '#EC4899' },
+        { name: '쇼핑', value: 10, color: '#A855F7' }
+      ],
+      '미식형': [
+        { name: '맛집', value: 50, color: '#F59E0B' },
+        { name: '관광', value: 30, color: '#6366F1' },
+        { name: '휴식', value: 20, color: '#EC4899' }
+      ],
+      '쇼핑형': [
+        { name: '쇼핑', value: 50, color: '#A855F7' },
+        { name: '관광', value: 30, color: '#6366F1' },
+        { name: '휴식', value: 20, color: '#EC4899' }
+      ],
+      '액티비티형': [
+        { name: '액티비티', value: 60, color: '#10B981' },
+        { name: '관광', value: 25, color: '#6366F1' },
+        { name: '휴식', value: 15, color: '#EC4899' }
+      ]
+    };
+
+    // 기본값 (travel_style이 없거나 매칭되지 않는 경우)
+    return styleMap[mappedStyle] || [
+      { name: '관광', value: 40, color: '#6366F1' },
+      { name: '쇼핑', value: 30, color: '#A855F7' },
+      { name: '휴식', value: 30, color: '#EC4899' }
+    ];
+  };
+
+  // ✅ 기타 여행비 계산 함수
+  const calculateDailyExpenses = (travelStyle, destination) => {
+    // 여행 스타일별 기본 1일 비용 (식비 + 교통비 + 입장료 + 기타)
+    const styleExpenses = {
+      '휴양형': 90000,      // 휴양지 - 상대적으로 저렴
+      '관광형': 120000,      // 관광 - 입장료, 교통비 높음
+      '미식형': 140000,     // 미식 - 식비 높음
+      '쇼핑형': 150000,     // 쇼핑 - 쇼핑비 높음
+      '액티비티형': 130000  // 액티비티 - 체험비 높음
+    };
+    
+    return styleExpenses[travelStyle] || 80000; // 기본값 8만원
+  };
+
+  // ✅ 사용자의 travel_style 추출
+  const rawTravelStyle = finalPlan?.travel_style || 
+                        tripData?.travel_style || 
+                        tripData?.raw_data?.mcp_fetched_data?.travel_style ||
+                        'sightseeing'; // 기본값을 영어로
+  
+  // 영어 → 한국어 매핑
+  const englishToKorean = {
+    'sightseeing': '관광형',
+    'relaxation': '휴양형',
+    'activity': '액티비티형',
+    'foodie': '미식형', 
+    'shopping': '쇼핑형'
+  };
+  
+  const userTravelStyle = englishToKorean[rawTravelStyle] || rawTravelStyle;
+
+  // ✅ 동적 활동 비율 데이터
+  const activityData = getActivityDataByStyle(userTravelStyle);
+  
+  // 🔍 디버깅: travel_style 확인
+  console.log("📊 [CHART] Raw travel style:", rawTravelStyle);
+  console.log("📊 [CHART] Mapped travel style:", userTravelStyle);
+  console.log("📊 [CHART] Activity data:", activityData);
 
   // ------------------------------------------------------------------
   // [렌더링] Step 1: 항공권 선택 화면
@@ -376,7 +508,9 @@ useEffect(() => {
           <div className="lg:col-span-1 space-y-6">
             {/* 활동 비율 카드 */}
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900 mb-6">활동 비율</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-6">
+                {userTravelStyle} 활동 비율
+              </h2>
               
               <div className="relative mb-6">
                 <ResponsiveContainer width="100%" height={200}>
@@ -453,19 +587,90 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* 1인 예산 카드 */}
+            {/* 💰 1인 예산 카드 - 세부 비용 계산 */}
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center flex-shrink-0">
                   <Wallet className="text-green-600" size={24} />
                 </div>
                 <div>
                   <div className="text-sm text-gray-500">1인 예산</div>
-                  <div className="text-xl font-bold text-gray-900">
-                    {Math.floor((finalPlan?.total_cost || 1000000) / (finalPlan?.pax || 2)).toLocaleString()} KRW
-                  </div>
+                  <div className="text-lg font-bold text-gray-900">실시간 계산</div>
                 </div>
               </div>
+              
+              {/* 세부 비용 계산 */}
+              {(() => {
+                // 박수 계산
+                const nights = (() => {
+                  if (!tripDates?.start || !tripDates?.end) return 1;
+                  const start = new Date(tripDates.start);
+                  const end = new Date(tripDates.end);
+                  return Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+                })();
+                
+                // 항공비 계산 (1인)
+                const flightCost = selectedFlight?.price_krw || selectedFlight?.price || 0;
+                
+                // 호텔비 계산 (1인, n박)  
+                const hotelCostPerNight = selectedHotel?.price || 0;
+                const hotelCost = hotelCostPerNight * nights;
+                
+                // ✅ 기타 여행비 계산 (식비, 교통비, 입장료 등)
+                const dailyExpenses = calculateDailyExpenses(userTravelStyle, finalPlan?.destination);
+                const otherCosts = dailyExpenses * nights;
+                
+                // 총액
+                const totalCost = flightCost + hotelCost + otherCosts;
+                
+                return (
+                  <div className="space-y-2">
+                    {/* 항공비 */}
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500">✈️ 항공비</span>
+                      <span className={flightCost > 0 ? "text-gray-700" : "text-gray-400"}>
+                        {flightCost > 0 ? `₩${flightCost.toLocaleString()}` : "미선택"}
+                      </span>
+                    </div>
+                    
+                    {/* 호텔비 */}
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500">🏨 호텔비 ({nights}박)</span>
+                      <span className={hotelCost > 0 ? "text-gray-700" : "text-gray-400"}>
+                        {hotelCost > 0 ? `₩${hotelCost.toLocaleString()}` : "미선택"}
+                      </span>
+                    </div>
+                    
+                    {/* ✅ 기타 여행비 */}
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500">🍽️ 기타 여행비 ({nights}일)</span>
+                      <span className="text-gray-700">
+                        ₩{otherCosts.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-400 ml-4 -mt-1">
+                      식비·교통비·입장료 등 (₩{dailyExpenses.toLocaleString()}/일)
+                    </div>
+                    
+                    {/* 구분선 */}
+                    <div className="border-t border-gray-200 pt-2 mt-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-gray-900">총액</span>
+                        <span className="font-bold text-lg text-blue-600">
+                          ₩{totalCost.toLocaleString()}
+                        </span>
+                      </div>
+                      
+                      {/* 기존 예산과 비교 */}
+                      {finalPlan?.total_cost && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          예상 예산: ₩{Math.floor(finalPlan.total_cost / (finalPlan?.pax || 2)).toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -698,14 +903,49 @@ useEffect(() => {
                   return;
                 }
 
-                // ✅ window 객체의 최신 데이터 사용 (Header와 동일)
-                const tripData = window.currentTripData;
+                // ✅ window 객체의 최신 데이터 사용
+                let tripData = window.currentTripData;
                 if (!tripData) {
                   alert('저장할 여행 데이터가 없습니다.');
                   return;
                 }
 
-                console.log("💾 [PAGE SAVE] Using window data:", tripData);
+                // ✅ 최종 비용 재계산 (안전성을 위해)
+                const nights = (() => {
+                  if (!tripDates?.start || !tripDates?.end) return 1;
+                  const start = new Date(tripDates.start);
+                  const end = new Date(tripDates.end);
+                  return Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+                })();
+                
+                const finalFlightCost = selectedFlight?.price_krw || selectedFlight?.price || 0;
+                const finalHotelCost = (selectedHotel?.price || 0) * nights;
+                
+                // ✅ 기타 여행비 계산 (식비, 교통비, 입장료 등)
+                const dailyExpenses = calculateDailyExpenses(userTravelStyle, finalPlan?.destination);
+                const finalOtherCosts = dailyExpenses * nights;
+                const finalTotalCost = finalFlightCost + finalHotelCost + finalOtherCosts;
+                
+                // ✅ 최종 계산된 비용으로 업데이트
+                tripData = {
+                  ...tripData,
+                  total_cost: finalTotalCost,
+                  selected_flight_cost: finalFlightCost,
+                  selected_hotel_cost: finalHotelCost,
+                  other_costs: finalOtherCosts,
+                  cost_calculation: {
+                    flight_cost: finalFlightCost,
+                    hotel_cost_per_night: selectedHotel?.price || 0,
+                    nights: nights,
+                    total_hotel_cost: finalHotelCost,
+                    daily_expenses: dailyExpenses,
+                    other_costs: finalOtherCosts,
+                    total_cost: finalTotalCost,
+                    travel_style: userTravelStyle
+                  }
+                };
+
+                console.log("💾 [FINAL SAVE] Final trip data with costs:", tripData);
 
                 const response = await fetch('http://127.0.0.1:8080/api/trip/save', {
                   method: 'POST',
