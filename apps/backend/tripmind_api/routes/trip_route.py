@@ -224,3 +224,40 @@ def delete_trip(trip_id):
         db.session.rollback()
         print(f"[TripRoute] ❌ Error in /delete: {e}")
         return jsonify({"error": str(e)}), 500
+    
+@bp.patch("/saved/<int:trip_id>")
+@jwt_required()
+def update_trip(trip_id):
+    """여행 계획 수정"""
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        trip = Trip.query.filter_by(id=trip_id, user_id=int(user_id)).first()
+        
+        if not trip:
+            return jsonify({"error": "Trip not found"}), 404
+        
+        # ✅ 일정 업데이트
+        if 'schedule_json' in data:
+            trip.schedule_json = data['schedule_json']
+        if 'schedule' in data:
+            trip.schedule_json = data['schedule']
+            
+        # 기타 필드 업데이트
+        if 'trip_summary' in data:
+            trip.trip_summary = data['trip_summary']
+        if 'total_cost' in data:
+            trip.total_cost = data['total_cost']
+            
+        trip.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({"message": "여행 계획이 수정되었습니다."}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"[TripRoute] ❌ Error in /update: {e}")
+        return jsonify({"error": str(e)}), 500
+    

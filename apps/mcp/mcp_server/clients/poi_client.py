@@ -1,4 +1,4 @@
-# mcp/mcp_server/clients/poi_client.py
+# mcp/mcp_server/clients/poi_client.py (수정 버전)
 import httpx
 import asyncio
 from ..config import settings
@@ -57,11 +57,36 @@ class PoiClient:
             pois = []
             for place in result.get("results", [])[:7]: # 카테고리별 상위 7개 결과만 사용
                 loc = place.get("geometry", {}).get("location", {})
+                place_name = place.get("name", "")
+                place_rating = place.get("rating", 0)
+                place_types = place.get("types", [])
+                
+                # 카테고리 결정
+                if "restaurant" in place_types or "food" in place_types:
+                    category = "맛집"
+                elif "cafe" in place_types:
+                    category = "카페"
+                else:
+                    category = "관광명소"
+                
+                # ✅ 상세 설명 생성
+                description = place_name
+                if place_rating > 0:
+                    description += f" - {category}"
+                    if category == "맛집":
+                        description += ", 현지 맛집"
+                    elif category == "카페":
+                        description += ", 분위기 좋은 카페"
+                    else:
+                        description += ", 인기 관광지"
+                    description += f" (Rating: {place_rating})"
+                
                 pois.append({
-                    "name": place.get("name"),
-                    # Google의 types를 더 일반적인 카테고리로 매핑 (단순화)
-                    "category": "맛집" if "restaurant" in place.get("types", []) else "카페" if "cafe" in place.get("types", []) else "관광명소",
-                    "rating": place.get("rating", 0),
+                    "name": place_name,
+                    "category": category,
+                    "rating": place_rating,  # ✅ Google에서 가져온 실제 rating
+                    "description": description,  # ✅ 상세 설명 추가
+                    "vicinity": place.get("vicinity", ""),  # ✅ 위치 정보 추가
                     "lat": loc.get("lat"),
                     "lng": loc.get("lng")
                 })
@@ -81,14 +106,31 @@ class PoiClient:
 
             pois = []
             for place in result.get("documents", []):
+                place_name = place.get("place_name", "")
+                place_rating = float(place.get("rating", 0)) if place.get("rating") else 0
+                category = place.get("category_group_name", "관광명소")
+                
+                # ✅ 상세 설명 생성 (Kakao도 동일하게)
+                description = place_name
+                if place_rating > 0:
+                    description += f" - {category}"
+                    if "음식점" in category:
+                        description += ", 현지 맛집"
+                    elif "카페" in category:
+                        description += ", 분위기 좋은 카페"
+                    else:
+                        description += ", 인기 장소"
+                    description += f" (Rating: {place_rating})"
+                
                 pois.append({
-                    "name": place.get("place_name"),
-                    "category": place.get("category_group_name"),
-                    "rating": float(place.get("rating", 0)) if place.get("rating") else 0,
+                    "name": place_name,
+                    "category": category,
+                    "rating": place_rating,  # ✅ 실제 rating
+                    "description": description,  # ✅ 상세 설명 추가
+                    "vicinity": place.get("address_name", ""),  # ✅ 주소 정보
                     "lat": float(place.get("y")),
                     "lng": float(place.get("x"))
                 })
             return pois
         except httpx.HTTPStatusError as e:
             raise PoiClientError(f"Kakao POI search failed: {e.response.text}")
-

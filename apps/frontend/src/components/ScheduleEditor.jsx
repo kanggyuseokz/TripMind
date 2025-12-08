@@ -115,7 +115,8 @@ const ScheduleEditor = ({ schedule, pois = [], onScheduleChange }) => {
       place_name: '새 장소',
       description: '새 활동',
       icon: 'star',
-      user_note: ''
+      user_note: '',
+      poi_rating: null  // ← 추가해서 0이 안 나오게 함
     };
     
     const newSchedule = [...editingSchedule];
@@ -129,8 +130,9 @@ const ScheduleEditor = ({ schedule, pois = [], onScheduleChange }) => {
     const newSchedule = [...editingSchedule];
     const event = newSchedule[dayIndex].events[eventIndex];
     
+    event.poi_name = poi.name; // ✅ 추가
     event.place_name = poi.name;
-    event.description = poi.category || poi.vicinity || poi.name;
+    event.description = poi.name; // ✅ 화면에 표시되는 텍스트
     event.latitude = poi.lat || poi.latitude;
     event.longitude = poi.lng || poi.longitude;
     event.poi_rating = poi.rating;
@@ -271,7 +273,10 @@ const ScheduleEditor = ({ schedule, pois = [], onScheduleChange }) => {
                 <button
                   key={index}
                   className="w-full text-left p-3 border border-gray-200 rounded hover:border-blue-300 hover:bg-blue-50"
-                  onClick={() => handlePoiSelect(selectedEvent.dayIndex, selectedEvent.eventIndex, poi)}
+                  onClick={() => {
+                    console.log("🔍 Selected POI:", poi); // ← 디버깅 추가
+                    handlePoiSelect(selectedEvent.dayIndex, selectedEvent.eventIndex, poi);
+                  }}
                 >
                   <div className="font-medium">{poi.name}</div>
                   <div className="text-sm text-gray-600">

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plane, Calendar, Users, Wallet, MapPin, ShoppingBag, Coffee, Car, Utensils, Home, Loader2, Star, BedDouble, ArrowRight, Trash2, Edit, Clock } from 'lucide-react';
+import ScheduleEditor from '../components/ScheduleEditor'; // ✅ 추가
 
-// 아이콘 컴포넌트들
+// 기존 코드 그대로...
 const CalendarIcon = () => <Calendar size={20} />;
 const UsersIcon = () => <Users size={20} />;
 const WalletIcon = () => <Wallet size={20} />;
@@ -12,7 +13,6 @@ const CoffeeIcon = () => <Coffee size={16} className="text-gray-500"/>;
 const CarIcon = () => <Car size={16} className="text-gray-500"/>;
 const UtensilsIcon = () => <Utensils size={16} className="text-gray-500"/>;
 
-// ✅ 시간 포맷팅
 const formatTime = (isoString) => {
   if (!isoString) return '-';
   try {
@@ -72,6 +72,11 @@ export default function ViewTripPage() {
   const [tripPlan, setTripPlan] = useState(null);
   const [activeTab, setActiveTab] = useState('schedule');
   const [loading, setLoading] = useState(true);
+  
+  // ✅ 편집 모드 상태 추가
+  const [isEditing, setIsEditing] = useState(false);
+  const [originalSchedule, setOriginalSchedule] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const fetchTrip = async () => {
@@ -107,7 +112,6 @@ export default function ViewTripPage() {
         const partySize = parseInt(data.pax || data.party_size || data.head_count || 1, 10);
         const totalCost = data.budget || data.total_cost || (budget * partySize);
 
-        // ✅ 날짜 계산
         let durationStr = "";
         if (data.start_date && data.end_date) {
           const start = new Date(data.start_date);
@@ -118,7 +122,6 @@ export default function ViewTripPage() {
           durationStr = `${nights}박 ${days}일`;
         }
 
-        // ✅ 항공/호텔 데이터 추출
         const rawData = data.raw_data || {};
         const mcpData = rawData.mcp_fetched_data || {};
 
@@ -136,10 +139,9 @@ export default function ViewTripPage() {
           hotels = mcpData.hotel_candidates.slice(0, 1);
         }
 
-        // ✅ 날씨 데이터
         const weatherByDate = mcpData.weather_by_date || {};
 
-        setTripPlan({
+        const tripData = {
           id: data.id,
           trip_summary: data.trip_summary || `${data.destination} 여행`,
           total_cost: totalCost,
@@ -156,8 +158,17 @@ export default function ViewTripPage() {
           flights: flights,
           hotels: hotels,
           schedule: data.schedule || [],
-          weatherByDate: weatherByDate // ✅ 추가
-        });
+          weatherByDate: weatherByDate,
+          // ✅ POI 데이터 추가
+          poi_list: mcpData.poi_list || []
+        };
+
+        setTripPlan(tripData);
+        
+        // ✅ 원본 스케줄 백업
+        if (data.schedule) {
+          setOriginalSchedule(JSON.parse(JSON.stringify(data.schedule)));
+        }
 
         setLoading(false);
 
@@ -170,6 +181,80 @@ export default function ViewTripPage() {
 
     fetchTrip();
   }, [id, navigate]);
+
+  // ✅ 편집 모드 토글
+  const toggleEditMode = () => {
+    if (isEditing) {
+      // 편집 종료 - 변경사항 확인
+      if (JSON.stringify(tripPlan.schedule) !== JSON.stringify(originalSchedule)) {
+        const shouldSave = window.confirm(
+          '변경사항이 있습니다. 저장하시겠습니까?\n' +
+          '"확인" = 저장 후 종료\n' +
+          '"취소" = 변경사항 버리고 종료'
+        );
+        
+        if (shouldSave) {
+          handleSaveSchedule();
+          return;
+        } else {
+          // 원본으로 복원
+          setTripPlan(prev => ({
+            ...prev,
+            schedule: JSON.parse(JSON.stringify(originalSchedule))
+          }));
+        }
+      }
+    } else {
+      // 편집 시작 - 현재 상태 백업
+      setOriginalSchedule(JSON.parse(JSON.stringify(tripPlan.schedule)));
+    }
+    
+    setIsEditing(!isEditing);
+  };
+
+  // ✅ 스케줄 변경 핸들러
+  const handleScheduleChange = (newSchedule) => {
+    setTripPlan(prev => ({
+      ...prev,
+      schedule: newSchedule
+    }));
+  };
+
+  // ✅ 수정된 일정 저장
+  const handleSaveSchedule = async () => {
+    try {
+      setSaving(true);
+      
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://127.0.0.1:8080/api/trip/saved/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          schedule: tripPlan.schedule,
+          updated_at: new Date().toISOString()
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('일정 저장에 실패했습니다.');
+      }
+
+      // 성공 - 원본 스케줄 업데이트
+      setOriginalSchedule(JSON.parse(JSON.stringify(tripPlan.schedule)));
+      setIsEditing(false);
+      
+      alert('✅ 일정이 성공적으로 저장되었습니다!');
+      
+    } catch (err) {
+      console.error('Error saving schedule:', err);
+      alert('❌ 일정 저장 중 오류가 발생했습니다: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!window.confirm('정말로 이 여행을 삭제하시겠습니까?')) return;
@@ -216,12 +301,39 @@ export default function ViewTripPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
         
         <div className="absolute top-4 right-4 flex gap-2">
-          <button
-            onClick={() => navigate(`/planner?edit=${id}`)}
-            className="bg-white/90 backdrop-blur hover:bg-white text-gray-800 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg transition-all"
-          >
-            <Edit size={16} /> 수정
-          </button>
+          {/* ✅ 편집 모드 버튼들 수정 */}
+          {isEditing ? (
+            <>
+              <button
+                onClick={() => {
+                  setTripPlan(prev => ({
+                    ...prev,
+                    schedule: JSON.parse(JSON.stringify(originalSchedule))
+                  }));
+                  setIsEditing(false);
+                }}
+                className="bg-gray-500/90 backdrop-blur hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg transition-all"
+                disabled={saving}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSaveSchedule}
+                className="bg-green-500/90 backdrop-blur hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg transition-all"
+                disabled={saving}
+              >
+                {saving ? '저장 중...' : '💾 저장'}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={toggleEditMode}
+              className="bg-white/90 backdrop-blur hover:bg-white text-gray-800 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg transition-all"
+            >
+              <Edit size={16} /> 일정 수정
+            </button>
+          )}
+          
           <button
             onClick={handleDelete}
             className="bg-red-500/90 backdrop-blur hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg transition-all"
@@ -229,6 +341,13 @@ export default function ViewTripPage() {
             <Trash2 size={16} /> 삭제
           </button>
         </div>
+
+        {/* ✅ 편집 모드 표시 */}
+        {isEditing && (
+          <div className="absolute top-4 left-4 bg-yellow-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+            ✏️ 편집 모드
+          </div>
+        )}
 
         <div className="absolute bottom-0 left-0 w-full p-8 text-white transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
           <h1 className="text-4xl md:text-5xl font-extrabold mb-3 tracking-tight shadow-sm">{tripPlan.trip_summary}</h1>
@@ -240,7 +359,7 @@ export default function ViewTripPage() {
         </div>
       </div>
 
-      {/* 메인 컨텐츠 그리드 */}
+      {/* 기존 메인 컨텐츠 그리드... */}
       <div className="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* 좌측 사이드 */}
         <div className="lg:col-span-1 space-y-6">
@@ -289,61 +408,87 @@ export default function ViewTripPage() {
           </div>
           
           <div className="min-h-[400px]">
-            {/* 일정 탭 */}
+            {/* ✅ 일정 탭 - 편집 모드 추가 */}
             {activeTab === 'schedule' && (
               <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 animate-in fade-in">
-                <h3 className="text-xl font-bold text-gray-800 mb-6">일정표</h3>
-                
-                <div className="space-y-8 relative before:absolute before:inset-0 before:left-4 before:top-4 before:w-0.5 before:bg-gray-200 before:h-full">
-                  {tripPlan.schedule && tripPlan.schedule.length > 0 ? (
-                    tripPlan.schedule.map((dayPlan, idx) => (
-                    <div key={idx} className="relative pl-10">
-                      <div className="absolute left-0 top-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md ring-4 ring-white z-10">{dayPlan.day}</div>
-                      <div className="mb-4">
-                        <h4 className="text-lg font-bold text-gray-900">{dayPlan.date || `Day ${dayPlan.day}`}</h4>
-                        {/* ✅ 날씨 표시 */}
-                        {tripPlan.weatherByDate && tripPlan.weatherByDate[dayPlan.full_date] && (
-                          <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-                            <span>🌤️ {tripPlan.weatherByDate[dayPlan.full_date].condition}</span>
-                            <span>{tripPlan.weatherByDate[dayPlan.full_date].temp}°C</span>
-                          </div>
-                        )}
-                      </div>
-                      <ul className="space-y-3">
-                        {dayPlan.events && dayPlan.events.map((event, eIdx) => (
-                          <li key={eIdx} className="relative flex items-start bg-gray-50 p-4 rounded-xl border border-gray-100">
-                            <span className="flex-shrink-0 mr-4 mt-1 text-gray-500 p-2 bg-white rounded-lg shadow-sm">
-                              {event.icon === "plane" ? <Plane size={18} className="text-blue-500" /> : 
-                               event.icon === "shopping" ? <ShoppingIcon /> : 
-                               event.icon === "utensils" ? <UtensilsIcon /> : 
-                               event.icon === "home" ? <HomeIcon /> : 
-                               event.icon === "coffee" ? <CoffeeIcon /> : 
-                               event.icon === "car" ? <CarIcon /> : 
-                               <Clock size={18} className="text-gray-400" />}
-                            </span>
-                            <div className="flex-1">
-                              <p className="font-bold text-gray-800 text-sm mb-0.5">{event.time_slot}</p>
-                              <p className="text-gray-600 text-sm leading-relaxed">{event.description}</p>
-                              {event.poi_rating && (
-                                <div className="flex items-center gap-1 mt-1 text-xs text-yellow-600">
-                                  <Star size={12} fill="currentColor" />
-                                  <span>{event.poi_rating}</span>
-                                </div>
-                              )}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))
-                  ) : (
-                    <div className="text-center text-gray-500 py-10">일정 정보가 없습니다.</div>
+                <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                  일정표
+                  {isEditing && (
+                    <span className="text-sm font-normal text-yellow-600 bg-yellow-50 px-2 py-1 rounded">
+                      편집 모드 활성화
+                    </span>
                   )}
-                </div>
+                </h3>
+                
+                {isEditing ? (
+                  /* ✅ 편집 모드 */
+                  <ScheduleEditor
+                    schedule={tripPlan.schedule}
+                    pois={tripPlan.poi_list || []}
+                    onScheduleChange={handleScheduleChange}
+                  />
+                ) : (
+                  /* ✅ 기존 읽기 모드 */
+                  <div className="space-y-8 relative before:absolute before:inset-0 before:left-4 before:top-4 before:w-0.5 before:bg-gray-200 before:h-full">
+                    {tripPlan.schedule && tripPlan.schedule.length > 0 ? (
+                      tripPlan.schedule.map((dayPlan, idx) => (
+                      <div key={idx} className="relative pl-10">
+                        <div className="absolute left-0 top-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md ring-4 ring-white z-10">{dayPlan.day}</div>
+                        <div className="mb-4">
+                          <h4 className="text-lg font-bold text-gray-900">{dayPlan.date || `Day ${dayPlan.day}`}</h4>
+                          {tripPlan.weatherByDate && tripPlan.weatherByDate[dayPlan.full_date] && (
+                            <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                              <span>🌤️ {tripPlan.weatherByDate[dayPlan.full_date].condition}</span>
+                              <span>{tripPlan.weatherByDate[dayPlan.full_date].temp}°C</span>
+                            </div>
+                          )}
+                        </div>
+                        <ul className="space-y-3">
+                          {dayPlan.events && dayPlan.events.map((event, eIdx) => (
+                            <li key={eIdx} className="relative flex items-start bg-gray-50 p-4 rounded-xl border border-gray-100">
+                              <span className="flex-shrink-0 mr-4 mt-1 text-gray-500 p-2 bg-white rounded-lg shadow-sm">
+                                {event.icon === "plane" ? <Plane size={18} className="text-blue-500" /> : 
+                                 event.icon === "shopping" ? <ShoppingIcon /> : 
+                                 event.icon === "utensils" ? <UtensilsIcon /> : 
+                                 event.icon === "home" ? <HomeIcon /> : 
+                                 event.icon === "coffee" ? <CoffeeIcon /> : 
+                                 event.icon === "car" ? <CarIcon /> : 
+                                 <Clock size={18} className="text-gray-400" />}
+                              </span>
+                              <div className="flex-1">
+                                <p className="font-bold text-gray-800 text-sm mb-0.5">{event.time_slot}</p>
+                                <p className="text-gray-900 font-medium text-sm leading-relaxed">
+                                  {event.poi_name || event.place_name || event.description}
+                                </p>
+                                {event.description && event.description !== (event.poi_name || event.place_name) && (
+                                  <p className="text-gray-600 text-xs mt-1">{event.description}</p>
+                                )}
+                                {event.poi_rating && event.poi_rating > 0 && (
+                                  <div className="flex items-center gap-1 mt-1 text-xs text-yellow-600">
+                                    <Star size={12} fill="currentColor" />
+                                    <span>{event.poi_rating}</span>
+                                  </div>
+                                )}
+                                {event.user_note && (
+                                  <p className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded mt-1">
+                                    📝 {event.user_note}
+                                  </p>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))
+                    ) : (
+                      <div className="text-center text-gray-500 py-10">일정 정보가 없습니다.</div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             
-            {/* 항공권 탭 */}
+            {/* 기존 항공권/숙소 탭들... */}
             {activeTab === 'flights' && (
               <div className="space-y-6 animate-in fade-in">
                 {tripPlan.flights && tripPlan.flights.length > 0 ? (
@@ -359,9 +504,7 @@ export default function ViewTripPage() {
                         </div>
                       </div>
 
-                      {/* ✅ 출입국 시간 표시 */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        {/* 출국 */}
                         <div className="bg-blue-50 p-4 rounded-xl">
                           <div className="flex items-center gap-2 mb-3">
                             <Plane size={16} className="text-blue-600" />
@@ -384,7 +527,6 @@ export default function ViewTripPage() {
                           </div>
                         </div>
 
-                        {/* 입국 */}
                         {bestFlight.inbound_departure_time && (
                           <div className="bg-green-50 p-4 rounded-xl">
                             <div className="flex items-center gap-2 mb-3">
@@ -427,7 +569,6 @@ export default function ViewTripPage() {
               </div>
             )}
             
-            {/* 숙소 탭 */}
             {activeTab === 'hotels' && (
               <div className="space-y-6 animate-in fade-in">
                 {tripPlan.hotels && tripPlan.hotels.length > 0 ? (
