@@ -5,6 +5,7 @@ from ..services.llm_service import LLMService
 from ..services.trip_service import TripService
 from ..models import Trip
 from ..extensions import db
+from datetime import datetime
 
 bp = Blueprint("trip", __name__)
 llm_service = LLMService()
@@ -90,12 +91,38 @@ def save_trip():
         user_id = get_jwt_identity()
         data = request.get_json()
 
+        start_date_raw = data.get('start_date')
+        end_date_raw = data.get('end_date')
+
+        start_date = None
+        end_date = None
+
+        if start_date_raw:
+            try:
+                if 'T' in str(start_date_raw):
+                    start_date = datetime.fromisoformat(start_date_raw.replace('Z', '+00:00')).date()
+                else:
+                    start_date = datetime.strptime(start_date_raw, '%Y-%m-%d').date()
+                print(f"[SAVE] ✅ start_date converted: {start_date}")
+            except ValueError as e:
+                print(f"[SAVE] ❌ start_date conversion failed: {e}")
+
+            if end_date_raw:
+                try:
+                    if 'T' in str(end_date_raw):
+                        end_date = datetime.fromisoformat(end_date_raw.replace('Z', '+00:00')).date()
+                    else: 
+                        end_date = datetime.strptime(end_date_raw, '%Y-%m-%d').date()
+                    print(f"[SAVE] ✅ end_date converted: {end_date}")
+                except ValueError as e:
+                    print(f"[SAVE] ❌ end_date conversion failed: {e}")
+
         new_trip = Trip(
             user_id=int(user_id),
             trip_summary=data.get('trip_summary'),
             destination=data.get('destination'),
-            start_date=data.get('start_date'),
-            end_date=data.get('end_date'),
+            start_date=start_date,
+            end_date=end_date,
             head_count=data.get('pax') or data.get('party_size') or data.get('head_count') or 2,
             total_cost=data.get('budget') or data.get('total_cost'),
             schedule_json=data.get('schedule'),

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Plane, Calendar, Users, Wallet, MapPin, ShoppingBag, Coffee, Car, Utensils, Home, ArrowRight, Check, Star, ChevronRight, Clock, BedDouble } from 'lucide-react';
+import { adjustScheduleWithFlightTimes } from '../utils/scheduleUtils';
+import ScheduleEditor from '../components/ScheduleEditor';
 
 // [UI 컴포넌트] 진행 단계 표시줄 (Wizard Steps)
 const StepIndicator = ({ currentStep }) => {
@@ -161,11 +163,24 @@ useEffect(() => {
   const handleSelectFlight = (flight) => {
     console.log("✅ Selected Flight:", flight);
     setSelectedFlight(flight);
-    
-    // ✅ window 데이터 업데이트
-    if (window.currentTripData) {
-      window.currentTripData.raw_data.selected_flight = flight;
-      console.log("🔄 [WINDOW DATA] Updated with flight:", window.currentTripData);
+    if (finalPlan?.schedule && finalPlan.schedule.length > 0) {
+      const adjustedSchedule = adjustScheduleWithFlightTimes(finalPlan.schedule, flight);
+      setFinalPlan(prev => ({
+        ...prev,
+        schedule: adjustedSchedule
+      }));
+
+      if (window.currentTripData) {
+        window.currentTripData.schedule = adjustedSchedule;
+        window.currentTripData.raw_data.selected_flight = flight;
+        console.log("💾 [WINDOW DATA] Schedule updated with flight times");
+      }
+      console.log("✅ [FLIGHT SELECT] 스케줄 조정 완료!");
+    } else {
+      console.warn("⚠️ [FLIGHT SELECT] 조정할 스케줄이 없습니다.");
+      if (window.currentTripData) {
+        window.currentTripDate.raw_data.selectedFlight = flight;
+      }
     }
     
     setCurrentStep(1);

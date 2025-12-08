@@ -45,7 +45,7 @@ const calculateDuration = (startDate, endDate) => {
   return `${nights}박 ${days}일`;
 };
 
-// 날짜 관련 함수
+// 날짜 관련
 const formatTripDates = (startDate, endDate) => {
   if (!startDate || !endDate) return '날짜 미정';
   
@@ -248,7 +248,7 @@ export default function SavedTripsPage() {
                     <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                       <div className="flex items-center gap-1.5">
                         <Calendar size={16} className="text-blue-500" />
-                        <span>{trip.start_date || '날짜 미정'} ({durationText})</span>
+                        <span>{formatTripDates(trip.start_date, trip.end_date)}</span>
                       </div>
                     </div>
                     

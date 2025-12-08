@@ -113,7 +113,9 @@ export default function ViewTripPage() {
           const start = new Date(data.start_date);
           const end = new Date(data.end_date);
           const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-          durationStr = `${diffDays}박 ${diffDays + 1}일`;
+          const nights = diffDays;
+          const days = nights + 1;
+          durationStr = `${nights}박 ${days}일`;
         }
 
         // ✅ 항공/호텔 데이터 추출

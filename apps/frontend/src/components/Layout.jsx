@@ -45,8 +45,8 @@ export default function Layout() {
       const payload = {
         trip_summary: tripData.trip_summary || `${tripData.destination} 여행`,
         destination: tripData.destination,
-        startDate: tripData.start_date || tripData.startDate,
-        endDate: tripData.end_date || tripData.endDate,
+        start_date: tripData.start_date || tripData.startDate,
+        end_date: tripData.end_date || tripData.endDate,
         total_cost: tripData.total_cost || tripData.budget,
         head_count: tripData.party_size || tripData.head_count,
         schedule: tripData.schedule || [],
