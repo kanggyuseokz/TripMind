@@ -141,6 +141,74 @@ export default function ViewTripPage() {
 
         const weatherByDate = mcpData.weather_by_date || {};
 
+        // ✅ travel_style별 동적 활동 비율 계산
+        const getActivityDataByStyle = (travelStyle) => {
+          // 🔄 영어 스타일명을 한국어로 매핑
+          const englishToKorean = {
+            'sightseeing': '관광형',
+            'relaxation': '휴양형',
+            'activity': '액티비티형', 
+            'foodie': '미식형',
+            'shopping': '쇼핑형'
+          };
+          
+          const mappedStyle = englishToKorean[travelStyle] || travelStyle;
+          
+          const styleMap = {
+            '휴양형': [
+              { name: '휴식', value: 60 },
+              { name: '관광', value: 25 },
+              { name: '쇼핑', value: 15 }
+            ],
+            '관광형': [
+              { name: '관광', value: 70 },
+              { name: '휴식', value: 20 },
+              { name: '쇼핑', value: 10 }
+            ],
+            '미식형': [
+              { name: '맛집', value: 50 },
+              { name: '관광', value: 30 },
+              { name: '휴식', value: 20 }
+            ],
+            '쇼핑형': [
+              { name: '쇼핑', value: 50 },
+              { name: '관광', value: 30 },
+              { name: '휴식', value: 20 }
+            ],
+            '액티비티형': [
+              { name: '액티비티', value: 60 },
+              { name: '관광', value: 25 },
+              { name: '휴식', value: 15 }
+            ]
+          };
+
+          return styleMap[mappedStyle] || [
+            { name: '관광', value: 40 },
+            { name: '쇼핑', value: 30 },
+            { name: '휴식', value: 30 }
+          ];
+        };
+
+        // ✅ 사용자의 travel_style 추출
+        const rawTravelStyle = data.travel_style || 
+                             rawData.travel_style || 
+                             mcpData?.travel_style ||
+                             'sightseeing';
+        
+        const englishToKorean = {
+          'sightseeing': '관광형',
+          'relaxation': '휴양형',
+          'activity': '액티비티형',
+          'foodie': '미식형', 
+          'shopping': '쇼핑형'
+        };
+        
+        const userTravelStyle = englishToKorean[rawTravelStyle] || rawTravelStyle;
+        const dynamicActivityData = getActivityDataByStyle(userTravelStyle);
+        
+        console.log("📊 [VIEW] Raw travel style:", rawTravelStyle);
+        console.log("📊 [VIEW] Mapped travel style:", userTravelStyle);
+
         const tripData = {
           id: data.id,
           trip_summary: data.trip_summary || `${data.destination} 여행`,
@@ -150,17 +218,19 @@ export default function ViewTripPage() {
           endDate: data.end_date,
           durationText: durationStr || "기간 미정",
           head_count: partySize,
-          activity_distribution: [
-            { name: '관광', value: 40 },
-            { name: '쇼핑', value: 30 },
-            { name: '휴식', value: 30 }
-          ],
+          activity_distribution: dynamicActivityData, // ✅ 동적 데이터 사용
           flights: flights,
           hotels: hotels,
           schedule: data.schedule || [],
           weatherByDate: weatherByDate,
           // ✅ POI 데이터 추가
-          poi_list: mcpData.poi_list || []
+          poi_list: mcpData.poi_list || [],
+          // ✅ 비용 계산을 위한 데이터 추가  
+          travel_style: userTravelStyle,
+          selected_flight_cost: data.selected_flight_cost || 0,
+          selected_hotel_cost: data.selected_hotel_cost || 0,
+          other_costs: data.other_costs || 0,
+          cost_calculation: data.cost_calculation || null
         };
 
         setTripPlan(tripData);
@@ -261,7 +331,7 @@ export default function ViewTripPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://127.0.0.1:8080/api/trip/${id}`, {
+      const response = await fetch(`http://127.0.0.1:8080/api/trip/saved/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -330,7 +400,7 @@ export default function ViewTripPage() {
               onClick={toggleEditMode}
               className="bg-white/90 backdrop-blur hover:bg-white text-gray-800 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg transition-all"
             >
-              <Edit size={16} /> 일정 수정
+              <Edit size={16} /> 수정하기
             </button>
           )}
           
@@ -365,7 +435,8 @@ export default function ViewTripPage() {
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-              <span className="w-1 h-6 bg-blue-500 rounded-full"></span>활동 비율
+              <span className="w-1 h-6 bg-blue-500 rounded-full"></span>
+              {tripPlan.travel_style} 활동 비율
             </h3>
             <div className="flex flex-col items-center">
               <DonutChart data={tripPlan.activity_distribution} size={180} strokeWidth={24} />
@@ -385,7 +456,20 @@ export default function ViewTripPage() {
           <div className="space-y-4">
             <OverviewCard title="인원" value={`${tripPlan.head_count}명`} icon={<UsersIcon size={20} />} />
             <OverviewCard title="여행 기간" value={tripPlan.durationText} subValue={`${tripPlan.startDate} ~ ${tripPlan.endDate}`} icon={<CalendarIcon size={20} />} />
-            <OverviewCard title="1인 예산" value={`${(tripPlan.per_person_budget || 0).toLocaleString()} KRW`} icon={<WalletIcon size={20} />} />
+            
+            {/* ✅ 1인 예산을 DB 저장값으로 간단 표시 */}
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+              <div className="flex items-start gap-3">
+                <div className="p-3 bg-blue-50 text-blue-600 rounded-full shrink-0">
+                  <WalletIcon size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-500 mb-2">1인 예산</p>
+                  <p className="font-bold text-lg text-gray-900">₩{(tripPlan.total_cost || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">실제 계산된 비용</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -458,11 +542,8 @@ export default function ViewTripPage() {
                               <div className="flex-1">
                                 <p className="font-bold text-gray-800 text-sm mb-0.5">{event.time_slot}</p>
                                 <p className="text-gray-900 font-medium text-sm leading-relaxed">
-                                  {event.poi_name || event.place_name || event.description}
+                                  {event.description}
                                 </p>
-                                {event.description && event.description !== (event.poi_name || event.place_name) && (
-                                  <p className="text-gray-600 text-xs mt-1">{event.description}</p>
-                                )}
                                 {event.poi_rating && event.poi_rating > 0 && (
                                   <div className="flex items-center gap-1 mt-1 text-xs text-yellow-600">
                                     <Star size={12} fill="currentColor" />

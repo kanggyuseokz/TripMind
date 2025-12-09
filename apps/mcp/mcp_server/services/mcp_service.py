@@ -20,7 +20,7 @@ class MCPService:
         self.agoda_client = AgodaClient()
         self.valid_styles = {
             'foodie': ['맛집', '음식', '미식', '식도락', '요리', '레스토랑', 'restaurant', 'food'],
-            'relaxation': ['휴양', '휴식', '느긋', '여유', '스파', '힐링', 'spa', 'relax'],
+            'relaxation': ['휴양', '휴식', '느긋', '여유', '스파', '힐링', 'spa', 'relax', '휴양지', '휴양형'],
             'activity': ['액티비티', '체험', '스포츠', '등산', '다이빙', '서핑', 'activity', 'sport'],
             'shopping': ['쇼핑', '면세점', '구매', '백화점', '아울렛', 'shopping', 'mall'],
             'sightseeing': ['관광', '여행', '구경', '투어', '명소', '랜드마크', 'tour', 'sight']
@@ -84,18 +84,33 @@ class MCPService:
         여행 스타일에 맞는 프롬프트 로드
         
         Args:
-            travel_style: LLM이 선택한 스타일 (foodie, sightseeing, relaxation, activity, shopping)
+            travel_style: 사용자 입력 스타일 (한국어 또는 영어)
         
         Returns:
             str: 해당 스타일의 MD 파일 내용
         """
         
-        # 기본값 처리
-        if travel_style not in self.valid_styles:
-            print(f"[MCP] ⚠️ Invalid style '{travel_style}', using 'sightseeing'")
-            travel_style = 'sightseeing'
+        # ✅ 한국어 입력을 영어 스타일로 매핑
+        mapped_style = None
+        input_lower = travel_style.lower().strip()
         
-        print(f"[MCP] 📋 Loading style guide: {travel_style}")
+        print(f"[MCP] 🔍 Mapping input style: '{travel_style}'")
+        
+        for style_key, keywords in self.valid_styles.items():
+            if input_lower in [k.lower() for k in keywords]:
+                mapped_style = style_key
+                break
+        
+        # 매핑된 스타일이 있으면 사용, 없으면 원본 사용
+        final_style = mapped_style if mapped_style else travel_style
+        
+        # 최종 검증 (영어 키에 없으면 기본값)
+        if final_style not in self.valid_styles:
+            print(f"[MCP] ⚠️ Invalid style '{final_style}', using 'sightseeing'")
+            final_style = 'sightseeing'
+        
+        print(f"[MCP] 📋 Input: '{travel_style}' → Mapped: '{final_style}'")
+        print(f"[MCP] 📋 Loading style guide: {final_style}")
         
         # MD 파일 읽기
         try:
@@ -116,8 +131,8 @@ class MCPService:
             print(f"[MCP] 📂 Prompts dir: {prompts_dir}")
             print(f"[MCP] 📂 Prompts dir exists: {os.path.exists(prompts_dir)}")
             
-            # 최종 파일 경로
-            prompt_path = os.path.join(prompts_dir, f'schedule_style_{travel_style}.md')
+            # ✅ 최종 파일 경로 (매핑된 스타일 사용)
+            prompt_path = os.path.join(prompts_dir, f'schedule_style_{final_style}.md')
             print(f"[MCP] 📂 Looking for: {prompt_path}")
             print(f"[MCP] 📂 File exists: {os.path.exists(prompt_path)}")
             
@@ -128,11 +143,11 @@ class MCPService:
             
             with open(prompt_path, 'r', encoding='utf-8') as f:
                 content = f.read()
-                print(f"[MCP] ✅ Loaded {travel_style} style guide: {len(content)} chars")
+                print(f"[MCP] ✅ Loaded {final_style} style guide: {len(content)} chars")
                 return content
                 
         except FileNotFoundError:
-            print(f"[MCP] ❌ Style file not found: schedule_style_{travel_style}.md")
+            print(f"[MCP] ❌ Style file not found: schedule_style_{final_style}.md")
             print(f"[MCP] ❌ Searched path: {prompt_path}")
             return ""
         except Exception as e:
@@ -157,7 +172,7 @@ class MCPService:
             destination: 목적지
             start_date: 시작 날짜
             end_date: 종료 날짜
-            travel_style: LLM이 선택한 여행 스타일 (foodie, sightseeing 등)
+            travel_style: 사용자 입력 여행 스타일 (한국어 가능)
             interests: 사용자 관심사
             poi_list: POI 목록 (평점 포함)
         
@@ -169,7 +184,7 @@ class MCPService:
             print("[MCP] ⚠️ LLM not available, using default schedule")
             return self._generate_default_schedule(start_date, end_date)
         
-        # 1. 스타일 프롬프트 로드
+        # 1. 스타일 프롬프트 로드 (매핑 로직 포함)
         style_guide = self._load_schedule_style_prompt(travel_style)
         
         # 2. POI 필터링 (평점 4.0 이상)
@@ -397,12 +412,57 @@ Return ONLY valid JSON array:
             e_date = date.fromisoformat(end) if isinstance(end, str) else end
             pax = self._get_safe_value(llm_data, 'party_size', 1)
             
-            # ✅ travel_style, is_domestic 추출
-            travel_style = self._get_safe_value(llm_data, 'travel_style', 'sightseeing')
-            interests = self._get_safe_value(llm_data, 'interests', ['관광'])
-            is_domestic = self._get_safe_value(llm_data, 'is_domestic', False)
+            # ✅ interests 먼저 추출
+            interests = (
+                self._get_safe_value(llm_data, 'interests') or
+                self._get_safe_value(llm_parsed_data, 'interests') or
+                ['관광']
+            )
             
-            print(f"[MCP] Travel Style: {travel_style}, Interests: {interests}, is_domestic: {is_domestic}")
+            # ✅ 디버깅: 받은 데이터 확인
+            print(f"[MCP] 🔍 DEBUG - Raw interests: {interests}")
+            print(f"[MCP] 🔍 DEBUG - llm_data keys: {list(llm_data.keys()) if isinstance(llm_data, dict) else 'Not dict'}")
+            if 'travel_style' in llm_data:
+                print(f"[MCP] 🔍 DEBUG - Original LLM travel_style: '{llm_data['travel_style']}'")
+            
+            # ✅ interests 기반으로 travel_style 직접 결정 (LLM 결과 무시)
+            interests_str = ' '.join(interests).lower() if interests else ''
+            print(f"[MCP] 🔍 DEBUG - interests_str for matching: '{interests_str}'")
+            
+            if any(keyword in interests_str for keyword in ['휴양', '휴식', '스파', '힐링', '리조트']):
+                travel_style = 'relaxation'
+                print(f"[MCP] 🔄 travel_style set to 'relaxation' (based on interests: {interests})")
+                print(f"[MCP] ✅ DEBUG - Matched relaxation keywords in: '{interests_str}'")
+            elif any(keyword in interests_str for keyword in ['맛집', '음식', '미식', '식도락']):
+                travel_style = 'foodie'
+                print(f"[MCP] 🔄 travel_style set to 'foodie' (based on interests: {interests})")
+                print(f"[MCP] ✅ DEBUG - Matched foodie keywords in: '{interests_str}'")
+            elif any(keyword in interests_str for keyword in ['쇼핑', '면세점', '구매']):
+                travel_style = 'shopping'
+                print(f"[MCP] 🔄 travel_style set to 'shopping' (based on interests: {interests})")
+                print(f"[MCP] ✅ DEBUG - Matched shopping keywords in: '{interests_str}'")
+            elif any(keyword in interests_str for keyword in ['액티비티', '체험', '스포츠', '등산']):
+                travel_style = 'activity'
+                print(f"[MCP] 🔄 travel_style set to 'activity' (based on interests: {interests})")
+                print(f"[MCP] ✅ DEBUG - Matched activity keywords in: '{interests_str}'")
+            else:
+                # ✅ 매핑되지 않으면 LLM 결과 사용
+                travel_style = (
+                    self._get_safe_value(llm_data, 'travel_style') or
+                    self._get_safe_value(llm_parsed_data, 'travel_style') or
+                    'sightseeing'
+                )
+                print(f"[MCP] 📋 travel_style from LLM: '{travel_style}' (interests: {interests})")
+                print(f"[MCP] ⚠️ DEBUG - No interests match found for: '{interests_str}'")
+            
+            # ✅ 최종 확인
+            print(f"[MCP] 🎯 FINAL DEBUG - travel_style before schedule generation: '{travel_style}'")
+            
+            is_domestic = (
+                self._get_safe_value(llm_data, 'is_domestic') or
+                self._get_safe_value(llm_parsed_data, 'is_domestic') or
+                False
+            )
             
             # ✅ budget 처리 (딕셔너리일 경우 amount 추출)
             budget_raw = self._get_safe_value(llm_data, 'budget_per_person') or self._get_safe_value(llm_data, 'budget') or 0
@@ -459,7 +519,7 @@ Return ONLY valid JSON array:
                     if 'lng' in np: np['longitude'] = np['lng']
                     norm_pois.append(np)
             
-            # ✅ 스타일 기반 일정 생성
+            # ✅ 스타일 기반 일정 생성 (한국어 매핑 포함)
             raw_schedule = self._generate_schedule_with_style(
                 destination=dest,
                 start_date=s_date,

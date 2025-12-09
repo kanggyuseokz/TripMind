@@ -662,11 +662,11 @@ useEffect(() => {
                       </div>
                       
                       {/* 기존 예산과 비교 */}
-                      {finalPlan?.total_cost && (
+                      {/* {finalPlan?.total_cost && (
                         <div className="text-xs text-gray-500 mt-1">
                           예상 예산: ₩{Math.floor(finalPlan.total_cost / (finalPlan?.pax || 2)).toLocaleString()}
                         </div>
-                      )}
+                      )} */}
                     </div>
                   </div>
                 );
@@ -923,7 +923,7 @@ useEffect(() => {
                 
                 // ✅ 기타 여행비 계산 (식비, 교통비, 입장료 등)
                 const dailyExpenses = calculateDailyExpenses(userTravelStyle, finalPlan?.destination);
-                const finalOtherCosts = dailyExpenses * nights;
+                const finalOtherCosts = dailyExpenses * (nights + 1);
                 const finalTotalCost = finalFlightCost + finalHotelCost + finalOtherCosts;
                 
                 // ✅ 최종 계산된 비용으로 업데이트
