@@ -41,11 +41,9 @@ class LLMService:
         """지정된 spec 파일에서 시스템 프롬프트를 로드합니다."""
         try:
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            # '..'을 사용하여 'services' 폴더 밖으로 나간 후 spec 파일 경로를 찾습니다.
-            spec_path = os.path.join(current_dir, '..', spec_file_name)
+            spec_path = os.path.join(current_dir, '..', 'prompts', spec_file_name)
             if not os.path.exists(spec_path):
                 # 파일이 없을 경우를 대비해 빈 문자열 반환하거나 기본 프롬프트 사용 가능
-                # 여기서는 에러를 발생시키되, 파일이 없으면 로직이 중단될 수 있으므로 주의
                 return "" 
             with open(spec_path, 'r', encoding='utf-8') as f:
                 return f.read()
