@@ -64,6 +64,7 @@ export default function ResultPage() {
   
   // 탭 상태 관리 (ViewTripPage 스타일)
   const [activeTab, setActiveTab] = useState('schedule');
+  const [activeChartIdx, setActiveChartIdx] = useState(0);
 
 useEffect(() => {
     if (!tripData) { 
@@ -439,41 +440,55 @@ useEffect(() => {
             {/* 예산 분석 카드 */}
             {costChartData ? (
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6">
-                  예산 분석
-                </h2>
-                <div className="relative mb-6">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">예산 분석</h2>
+                <div className="relative mb-4">
                   <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
                       <Pie
                         data={costChartData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
+                        innerRadius={58}
+                        outerRadius={88}
                         paddingAngle={2}
                         dataKey="value"
+                        onClick={(_, index) => setActiveChartIdx(index)}
+                        style={{ cursor: 'pointer' }}
                       >
                         {costChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={entry.color}
+                            opacity={index === activeChartIdx ? 1 : 0.45}
+                            stroke={index === activeChartIdx ? entry.color : 'none'}
+                            strokeWidth={index === activeChartIdx ? 3 : 0}
+                          />
                         ))}
                       </Pie>
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{costChartData[0]?.value}%</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">{costChartData[0]?.name}</div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {costChartData[activeChartIdx]?.value ?? 0}%
+                    </div>
+                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5">
+                      {costChartData[activeChartIdx]?.name}
+                    </div>
                   </div>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {costChartData.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between">
+                    <button
+                      key={idx}
+                      onClick={() => setActiveChartIdx(idx)}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg transition-colors ${idx === activeChartIdx ? 'bg-gray-50 dark:bg-gray-700' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}
+                    >
                       <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{item.name}</span>
+                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color, opacity: idx === activeChartIdx ? 1 : 0.45 }} />
+                        <span className={`text-sm ${idx === activeChartIdx ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'}`}>{item.name}</span>
                       </div>
-                      <span className="text-sm font-bold text-gray-900 dark:text-white">{item.value}%</span>
-                    </div>
+                      <span className={`text-sm font-bold ${idx === activeChartIdx ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>{item.value}%</span>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -561,31 +576,31 @@ useEffect(() => {
                   <div className="space-y-2">
                     {/* 항공비 */}
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-500">✈️ 항공비</span>
-                      <span className={flightCost > 0 ? "text-gray-700" : "text-gray-400"}>
+                      <span className="text-gray-500 dark:text-gray-400">✈️ 항공비</span>
+                      <span className={flightCost > 0 ? "text-gray-800 dark:text-gray-100 font-medium" : "text-gray-400 dark:text-gray-500"}>
                         {flightCost > 0 ? `₩${flightCost.toLocaleString()}` : "미선택"}
                       </span>
                     </div>
-                    
+
                     {/* 호텔비 */}
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-500">🏨 호텔비 ({nights}박)</span>
-                      <span className={hotelCost > 0 ? "text-gray-700" : "text-gray-400"}>
+                      <span className="text-gray-500 dark:text-gray-400">🏨 호텔비 ({nights}박)</span>
+                      <span className={hotelCost > 0 ? "text-gray-800 dark:text-gray-100 font-medium" : "text-gray-400 dark:text-gray-500"}>
                         {hotelCost > 0 ? `₩${hotelCost.toLocaleString()}` : "미선택"}
                       </span>
                     </div>
-                    
-                    {/* ✅ 기타 여행비 */}
+
+                    {/* 기타 여행비 */}
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-500">🍽️ 기타 여행비 ({nights}일)</span>
-                      <span className="text-gray-700">
+                      <span className="text-gray-500 dark:text-gray-400">🍽️ 기타 여행비 ({nights}일)</span>
+                      <span className="text-gray-800 dark:text-gray-100 font-medium">
                         ₩{otherCosts.toLocaleString()}
                       </span>
                     </div>
                     <div className="text-xs text-gray-400 dark:text-gray-500 ml-4 -mt-1">
                       식비·교통비·입장료 등 (₩{dailyExpenses.toLocaleString()}/일)
                     </div>
-                    
+
                     {/* 구분선 */}
                     <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
                       <div className="flex justify-between items-center">

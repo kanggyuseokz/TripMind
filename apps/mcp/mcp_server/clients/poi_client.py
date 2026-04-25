@@ -55,7 +55,7 @@ class PoiClient:
             result = response.json()
             
             pois = []
-            for place in result.get("results", [])[:7]: # 카테고리별 상위 7개 결과만 사용
+            for place in result.get("results", [])[:15]: # 카테고리별 상위 15개
                 loc = place.get("geometry", {}).get("location", {})
                 place_name = place.get("name", "")
                 place_rating = place.get("rating", 0)
@@ -98,7 +98,7 @@ class PoiClient:
         """Kakao 키워드 검색 API를 사용하여 POI를 검색합니다."""
         url = "https://dapi.kakao.com/v2/local/search/keyword.json"
         headers = {"Authorization": f"KakaoAK {self.kakao_api_key}"}
-        params = {"query": query, "size": 7} # 카테고리별 상위 7개 결과
+        params = {"query": query, "size": 15} # 카테고리별 상위 15개
         try:
             response = await client.get(url, headers=headers, params=params)
             response.raise_for_status()

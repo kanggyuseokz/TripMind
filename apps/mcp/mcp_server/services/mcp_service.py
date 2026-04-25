@@ -3,7 +3,8 @@ import asyncio
 import re
 import json
 import os
-import httpx  # ✅ 추가
+import random
+import httpx
 from datetime import date, datetime, timedelta
 from typing import Dict, Any, List
 import google.generativeai as genai
@@ -196,17 +197,33 @@ class MCPService:
         if secondary_guides:
             style_guide += "\n\n## 보조 스타일 가이드 (참고)\n" + "\n\n".join(secondary_guides)
         
-        # 2. POI 필터링 (평점 4.0 이상)
-        high_rated_pois = [
-            poi for poi in poi_list 
-            if poi.get('rating', 0) >= 4.0
-        ]
-        
-        # 3. POI 카테고리별 분류
-        restaurants = [p for p in high_rated_pois if 'restaurant' in p.get('types', []) or '음식점' in p.get('category', '')]
-        cafes = [p for p in high_rated_pois if 'cafe' in p.get('types', []) or '카페' in p.get('category', '')]
-        attractions = [p for p in high_rated_pois if 'tourist_attraction' in p.get('types', []) or '관광' in p.get('category', '')]
-        
+        # 2. POI 필터링 (평점 3.5 이상) + 셔플로 매번 다른 POI 노출
+        high_rated_pois = [p for p in poi_list if p.get('rating', 0) >= 3.5]
+        random.shuffle(high_rated_pois)
+
+        # 3. POI 카테고리별 분류 (poi_client가 저장하는 실제 category 값 기준)
+        def _is_restaurant(p):
+            cat = p.get('category', '')
+            return '맛집' in cat or '음식점' in cat or '식당' in cat or 'restaurant' in p.get('types', [])
+
+        def _is_cafe(p):
+            cat = p.get('category', '')
+            return '카페' in cat or 'cafe' in cat or 'coffee' in cat or 'cafe' in p.get('types', [])
+
+        def _is_attraction(p):
+            cat = p.get('category', '')
+            return '관광' in cat or '명소' in cat or '공원' in cat or '박물관' in cat or 'tourist_attraction' in p.get('types', [])
+
+        restaurants = [p for p in high_rated_pois if _is_restaurant(p)]
+        cafes       = [p for p in high_rated_pois if _is_cafe(p) and not _is_restaurant(p)]
+        attractions = [p for p in high_rated_pois if _is_attraction(p) and not _is_restaurant(p) and not _is_cafe(p)]
+
+        # 부족한 카테고리는 전체 POI에서 보충
+        if len(restaurants) < 3:
+            restaurants += [p for p in high_rated_pois if p not in restaurants][:5]
+        if len(attractions) < 3:
+            attractions += [p for p in high_rated_pois if p not in attractions][:5]
+
         print(f"[MCP] 🏪 POI Categories - Restaurants: {len(restaurants)}, Cafes: {len(cafes)}, Attractions: {len(attractions)}")
         
         # 4. LLM 프롬프트 생성
