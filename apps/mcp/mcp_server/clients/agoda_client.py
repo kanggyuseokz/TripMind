@@ -250,23 +250,18 @@ class AgodaClient:
             retry_count = 0
             
             while retry_info.get('next') and retry_count < max_retries:
-                retry_delay = retry_info.get('next', 2000) / 1000  # ms → s
-                print(f"[Agoda] ⏳ Search in progress, retrying in {retry_delay}s... ({retry_count + 1}/{max_retries})")
+                trips = data.get('trips', [])
+                if trips and trips[0].get('isCompleted') and trips[0].get('bundles'):
+                    print(f"[Agoda] ✅ Search completed! Found {len(trips[0].get('bundles', []))} bundles")
+                    break
 
+                retry_delay = (retry_info.get('next') or 2000) / 1000
+                print(f"[Agoda] ⏳ Search in progress, retrying in {retry_delay}s... ({retry_count + 1}/{max_retries})")
                 time.sleep(retry_delay)
-                
+
                 response = requests.get(url, headers=headers, params=querystring, timeout=60)
                 response.raise_for_status()
                 data = response.json()
-                
-                trips = data.get('trips', [])
-                if trips:
-                    trip = trips[0]
-                    bundles = trip.get('bundles', [])
-                    if trip.get('isCompleted') and len(bundles) > 0:
-                        print(f"[Agoda] ✅ Search completed early! Found {len(bundles)} bundles")
-                        break
-
                 retry_info = data.get('retry', {})
                 retry_count += 1
             
