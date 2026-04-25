@@ -12,10 +12,10 @@ const StepIndicator = ({ currentStep }) => {
     <div className="flex items-center justify-center mb-8">
       {steps.map((step, idx) => (
         <div key={idx} className="flex items-center">
-          <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold text-sm ${idx <= currentStep ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-200 text-gray-500'}`}>
+          <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold text-sm ${idx <= currentStep ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
             {idx + 1}
           </div>
-          <div className={`ml-3 mr-3 font-medium ${idx <= currentStep ? 'text-blue-800' : 'text-gray-400'}`}>{step}</div>
+          <div className={`ml-3 mr-3 font-medium ${idx <= currentStep ? 'text-blue-800 dark:text-blue-300' : 'text-gray-400 dark:text-gray-500'}`}>{step}</div>
           {idx < steps.length - 1 && <ChevronRight className="text-gray-300 mr-3" size={20} />}
         </div>
       ))}
@@ -335,9 +335,9 @@ useEffect(() => {
   // ------------------------------------------------------------------
   if (currentStep === 0) {
     return (
-      <div className="w-full max-w-5xl mx-auto p-6 min-h-screen bg-gray-50">
+      <div className="w-full max-w-5xl mx-auto p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         <StepIndicator currentStep={0} />
-        <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">🛫 최적의 항공권을 선택해주세요</h2>
+        <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white text-center">🛫 최적의 항공권을 선택해주세요</h2>
         
         {flightList.length === 0 && (
             <div className="mb-4 p-4 bg-yellow-50 text-yellow-800 text-xs rounded overflow-auto max-h-40">
@@ -348,28 +348,28 @@ useEffect(() => {
         <div className="space-y-4">
           {flightList.length > 0 ? (
             flightList.map((flight, idx) => (
-              <div key={idx} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:border-blue-500 hover:shadow-md transition-all">
+              <div key={idx} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-md transition-all">
                 <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
                   {/* 항공사 정보 */}
                   <div className="flex items-center gap-4 flex-1">
-                    <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
+                    <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400">
                       <Plane size={32}/>
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900">{flight.airline || "항공사 미정"}</h3>
-                      <p className="text-gray-500 text-sm">{flight.origin} → {flight.destination}</p>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white dark:text-white dark:text-white">{flight.airline || "항공사 미정"}</h3>
+                      <p className="text-gray-500 dark:text-gray-400 text-sm">{flight.origin} → {flight.destination}</p>
                     </div>
                   </div>
 
                   {/* ✅ 출입국 시간 표시 */}
                   <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     {/* 출국 */}
-                    <div className="bg-blue-50 p-3 rounded-lg">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
                       <div className="flex items-center gap-2 mb-1">
                         <Plane size={14} className="text-blue-600" />
-                        <span className="font-bold text-blue-900">출국</span>
+                        <span className="font-bold text-blue-900 dark:text-blue-300">출국</span>
                       </div>
-                      <div className="flex items-center justify-between text-gray-700">
+                      <div className="flex items-center justify-between text-gray-700 dark:text-gray-300">
                         <div>
                           <div className="text-xs text-gray-500">출발</div>
                           <div className="font-bold">{formatTime(flight.outbound_departure_time)}</div>
@@ -386,12 +386,12 @@ useEffect(() => {
 
                     {/* 입국 */}
                     {flight.inbound_departure_time && (
-                      <div className="bg-green-50 p-3 rounded-lg">
+                      <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
                           <Plane size={14} className="text-green-600 transform rotate-180" />
-                          <span className="font-bold text-green-900">입국</span>
+                          <span className="font-bold text-green-900 dark:text-green-300">입국</span>
                         </div>
-                        <div className="flex items-center justify-between text-gray-700">
+                        <div className="flex items-center justify-between text-gray-700 dark:text-gray-300">
                           <div>
                             <div className="text-xs text-gray-500">출발</div>
                             <div className="font-bold">{formatTime(flight.inbound_departure_time)}</div>
@@ -419,7 +419,7 @@ useEffect(() => {
               </div>
             ))
           ) : (
-            <div className="text-center py-20 text-gray-500 bg-white rounded-xl shadow-sm">
+            <div className="text-center py-20 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
               <p className="text-lg">검색된 항공권이 없습니다.</p>
               <button onClick={() => setCurrentStep(1)} className="mt-4 text-blue-600 underline">항공권 없이 진행하기</button>
             </div>
@@ -434,25 +434,25 @@ useEffect(() => {
   // ------------------------------------------------------------------
   if (currentStep === 1) {
     return (
-      <div className="w-full max-w-5xl mx-auto p-6 min-h-screen bg-gray-50">
+      <div className="w-full max-w-5xl mx-auto p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
         <StepIndicator currentStep={1} />
-        <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">🏨 마음에 드는 숙소를 골라보세요</h2>
+        <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white text-center">🏨 마음에 드는 숙소를 골라보세요</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {hotelList.length > 0 ? (
             hotelList.map((hotel, idx) => (
-              <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all group flex flex-col">
-                <div className="h-48 bg-gray-200 relative">
+              <div key={idx} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all group flex flex-col">
+                <div className="h-48 bg-gray-200 dark:bg-gray-700 relative">
                   <img src={hotel.image || "https://via.placeholder.com/400x300?text=Hotel"} alt={hotel.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  <div className="absolute top-3 right-3 bg-white/90 px-2 py-1 rounded-lg text-sm font-bold text-yellow-600 flex items-center gap-1">
+                  <div className="absolute top-3 right-3 bg-white/90 dark:bg-gray-800/90 px-2 py-1 rounded-lg text-sm font-bold text-yellow-600 flex items-center gap-1">
                     <Star size={14} fill="currentColor" /> {hotel.rating}
                   </div>
                 </div>
                 <div className="p-5 flex-1 flex flex-col">
-                  <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-1">{hotel.name}</h3>
-                  <p className="text-gray-500 text-sm flex items-center gap-1 mb-4"><MapPin size={14} /> {hotel.location}</p>
-                  <div className="mt-auto flex items-center justify-between pt-4 border-t border-gray-100">
-                    <p className="text-xl font-bold text-blue-600">{formatPrice(hotel.price)}원 <span className="text-xs text-gray-400 font-normal">/1박</span></p>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white dark:text-white dark:text-white mb-1 line-clamp-1">{hotel.name}</h3>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm flex items-center gap-1 mb-4"><MapPin size={14} /> {hotel.location}</p>
+                  <div className="mt-auto flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
+                    <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{formatPrice(hotel.price)}원 <span className="text-xs text-gray-400 font-normal">/1박</span></p>
                     <button onClick={() => handleSelectHotel(hotel)} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800 transition-colors">
                       선택
                     </button>
@@ -461,7 +461,7 @@ useEffect(() => {
               </div>
             ))
           ) : (
-            <div className="col-span-full text-center py-20 text-gray-500 bg-white rounded-xl shadow-sm">
+            <div className="col-span-full text-center py-20 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
               <p className="text-lg">검색된 숙소가 없습니다.</p>
               <button onClick={() => setCurrentStep(2)} className="mt-4 text-blue-600 underline">숙소 없이 진행하기</button>
             </div>
@@ -475,14 +475,14 @@ useEffect(() => {
   // [렌더링] Step 3: 최종 결과 화면 (ViewTripPage 스타일 탭)
   // ------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* 헤더 */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white dark:text-white mb-2">
             {finalPlan?.destination} 여행 계획
           </h1>
-          <p className="text-gray-600 flex items-center gap-2">
+          <p className="text-gray-600 dark:text-gray-400 flex items-center gap-2">
             <Calendar size={18} />
             {tripDates ? `${tripDates.start} ~ ${tripDates.end}` : '기간 미정'}
           </p>
@@ -493,8 +493,8 @@ useEffect(() => {
           {/* 왼쪽 사이드바 */}
           <div className="lg:col-span-1 space-y-6">
             {/* 활동 비율 카드 */}
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900 mb-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white dark:text-white dark:text-white mb-6">
                 {userTravelStyle} 활동 비율
               </h2>
               
@@ -518,7 +518,7 @@ useEffect(() => {
                 </ResponsiveContainer>
                 
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <div className="text-3xl font-bold text-gray-900">{activityData[0]?.value}%</div>
+                  <div className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">{activityData[0]?.value}%</div>
                   <div className="text-sm text-gray-500">{activityData[0]?.name}</div>
                 </div>
               </div>
@@ -530,34 +530,34 @@ useEffect(() => {
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
                       <span className="text-sm text-gray-700">{item.name}</span>
                     </div>
-                    <span className="text-sm font-bold text-gray-900">{item.value}%</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-white">{item.value}%</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* 인원 카드 */}
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0">
                   <Users className="text-blue-600" size={24} />
                 </div>
                 <div>
                   <div className="text-sm text-gray-500">인원</div>
-                  <div className="text-2xl font-bold text-gray-900">{finalPlan?.pax || 2}명</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">{finalPlan?.pax || 2}명</div>
                 </div>
               </div>
             </div>
 
             {/* ✅ 여행 기간 카드 */}
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-purple-50 rounded-full flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/30 rounded-full flex items-center justify-center flex-shrink-0">
                   <Calendar className="text-purple-600" size={24} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-gray-500">여행 기간</div>
-                  <div className="text-lg font-bold text-gray-900">
+                  <div className="text-lg font-bold text-gray-900 dark:text-white dark:text-white">
                     {(() => {
                       if (!tripDates?.start || !tripDates?.end) return '기간 미정';
                       const start = new Date(tripDates.start);
@@ -566,7 +566,7 @@ useEffect(() => {
                       return `${days - 1}박 ${days}일`;
                     })()}
                   </div>
-                  <div className="text-xs text-gray-400 mt-1 truncate">
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">
                     {tripDates?.start} ~ {tripDates?.end}
                   </div>
                 </div>
@@ -574,14 +574,14 @@ useEffect(() => {
             </div>
 
             {/* 💰 1인 예산 카드 - 세부 비용 계산 */}
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-green-50 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0">
                   <Wallet className="text-green-600" size={24} />
                 </div>
                 <div>
                   <div className="text-sm text-gray-500">1인 예산</div>
-                  <div className="text-lg font-bold text-gray-900">실시간 계산</div>
+                  <div className="text-lg font-bold text-gray-900 dark:text-white dark:text-white">실시간 계산</div>
                 </div>
               </div>
               
@@ -634,15 +634,15 @@ useEffect(() => {
                         ₩{otherCosts.toLocaleString()}
                       </span>
                     </div>
-                    <div className="text-xs text-gray-400 ml-4 -mt-1">
+                    <div className="text-xs text-gray-400 dark:text-gray-500 ml-4 -mt-1">
                       식비·교통비·입장료 등 (₩{dailyExpenses.toLocaleString()}/일)
                     </div>
                     
                     {/* 구분선 */}
-                    <div className="border-t border-gray-200 pt-2 mt-2">
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
                       <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-900">총액</span>
-                        <span className="font-bold text-lg text-blue-600">
+                        <span className="font-medium text-gray-900 dark:text-white">총액</span>
+                        <span className="font-bold text-lg text-blue-600 dark:text-blue-400">
                           ₩{totalCost.toLocaleString()}
                         </span>
                       </div>
@@ -662,13 +662,13 @@ useEffect(() => {
 
           {/* 오른쪽: 탭 영역 (ViewTripPage 스타일) */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 border border-gray-100">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 sm:p-8 border border-gray-100 dark:border-gray-700">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900">여행 세부사항</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white dark:text-white dark:text-white">여행 세부사항</h2>
               </div>
 
               {/* ✅ 탭 네비게이션 (ViewTripPage 스타일) */}
-              <div className="flex gap-2 border-b border-gray-200 overflow-x-auto mb-6">
+              <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto mb-6">
                 {[
                   { id: 'schedule', label: '상세 일정', icon: <Calendar size={18} /> },
                   { id: 'flight', label: '항공권', icon: <Plane size={18} /> },
@@ -677,7 +677,7 @@ useEffect(() => {
                   <button 
                     key={tab.id} 
                     onClick={() => setActiveTab(tab.id)} 
-                    className={`flex items-center gap-2 px-6 py-4 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === tab.id ? 'border-black text-black' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                    className={`flex items-center gap-2 px-6 py-4 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === tab.id ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`}
                   >
                     {tab.icon} {tab.label}
                   </button>
@@ -697,15 +697,15 @@ useEffect(() => {
                       <div className="space-y-8 relative before:absolute before:inset-0 before:left-4 before:top-4 before:w-0.5 before:bg-gray-200 before:h-full">
                         {finalPlan.schedule.map((day, idx) => (
                           <div key={idx} className="relative pl-10">
-                            <div className="absolute left-0 top-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md ring-4 ring-white z-10">
+                            <div className="absolute left-0 top-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md ring-4 ring-white dark:ring-gray-800 z-10">
                               {day.day}
                             </div>
 
                             <div className="mb-4">
-                              <h4 className="text-lg font-bold text-gray-900">{day.date || `Day ${day.day}`}</h4>
+                              <h4 className="text-lg font-bold text-gray-900 dark:text-white dark:text-white">{day.date || `Day ${day.day}`}</h4>
                               {/* ✅ 날씨 표시 */}
                               {finalPlan.weatherByDate && finalPlan.weatherByDate[day.full_date] && (
-                                <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-2">
                                   <span>🌤️ {finalPlan.weatherByDate[day.full_date].condition}</span>
                                   <span>{finalPlan.weatherByDate[day.full_date].temp}°C</span>
                                 </div>
@@ -714,7 +714,7 @@ useEffect(() => {
 
                             <div className="space-y-3">
                               {day.events?.map((event, eIdx) => (
-                                <div key={eIdx} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                <div key={eIdx} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-100 dark:border-gray-600">
                                   <div className="flex gap-4">
                                     <div className="flex-shrink-0">
                                       {event.time_slot?.includes('오전') ? <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center text-xl">☀️</div> :
@@ -725,9 +725,9 @@ useEffect(() => {
                                     </div>
 
                                     <div className="flex-1 min-w-0">
-                                      <div className="font-bold text-gray-700 text-sm mb-1">{event.time_slot}</div>
-                                      <div className="font-bold text-gray-900">{event.place_name || event.poi_name || event.description}</div>
-                                      {(event.place_name || event.poi_name) && <div className="text-sm text-gray-500 mt-1">{event.description}</div>}
+                                      <div className="font-bold text-gray-700 dark:text-gray-300 text-sm mb-1">{event.time_slot}</div>
+                                      <div className="font-bold text-gray-900 dark:text-white">{event.place_name || event.poi_name || event.description}</div>
+                                      {(event.place_name || event.poi_name) && <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">{event.description}</div>}
                                       {event.poi_rating && (
                                         <div className="flex items-center gap-1 mt-1 text-xs text-yellow-600">
                                           <Star size={12} fill="currentColor" />
@@ -757,7 +757,7 @@ useEffect(() => {
                               <Plane size={28} />
                             </div>
                             <div>
-                              <h4 className="text-2xl font-bold text-gray-900">{selectedFlight.airline || '항공편 정보'}</h4>
+                              <h4 className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">{selectedFlight.airline || '항공편 정보'}</h4>
                               <p className="text-gray-500 font-medium">{selectedFlight.origin} → {selectedFlight.destination}</p>
                             </div>
                           </div>
@@ -768,19 +768,19 @@ useEffect(() => {
                             <div className="bg-blue-50 p-4 rounded-xl">
                               <div className="flex items-center gap-2 mb-3">
                                 <Plane size={16} className="text-blue-600" />
-                                <span className="font-bold text-blue-900">출국</span>
+                                <span className="font-bold text-blue-900 dark:text-blue-300">출국</span>
                               </div>
                               <div className="space-y-2">
                                 <div className="flex justify-between items-center">
                                   <div>
                                     <div className="text-xs text-gray-600">출발</div>
-                                    <div className="text-lg font-bold text-gray-900">{formatTime(selectedFlight.outbound_departure_time)}</div>
+                                    <div className="text-lg font-bold text-gray-900 dark:text-white dark:text-white">{formatTime(selectedFlight.outbound_departure_time)}</div>
                                     <div className="text-xs text-gray-500">{formatDate(selectedFlight.outbound_departure_time)}</div>
                                   </div>
                                   <ArrowRight size={20} className="text-gray-400" />
                                   <div className="text-right">
                                     <div className="text-xs text-gray-600">도착</div>
-                                    <div className="text-lg font-bold text-gray-900">{formatTime(selectedFlight.outbound_arrival_time)}</div>
+                                    <div className="text-lg font-bold text-gray-900 dark:text-white dark:text-white">{formatTime(selectedFlight.outbound_arrival_time)}</div>
                                     <div className="text-xs text-gray-500">{formatDate(selectedFlight.outbound_arrival_time)}</div>
                                   </div>
                                 </div>
@@ -792,19 +792,19 @@ useEffect(() => {
                               <div className="bg-green-50 p-4 rounded-xl">
                                 <div className="flex items-center gap-2 mb-3">
                                   <Plane size={16} className="text-green-600 transform rotate-180" />
-                                  <span className="font-bold text-green-900">입국</span>
+                                  <span className="font-bold text-green-900 dark:text-green-300">입국</span>
                                 </div>
                                 <div className="space-y-2">
                                   <div className="flex justify-between items-center">
                                     <div>
                                       <div className="text-xs text-gray-600">출발</div>
-                                      <div className="text-lg font-bold text-gray-900">{formatTime(selectedFlight.inbound_departure_time)}</div>
+                                      <div className="text-lg font-bold text-gray-900 dark:text-white dark:text-white">{formatTime(selectedFlight.inbound_departure_time)}</div>
                                       <div className="text-xs text-gray-500">{formatDate(selectedFlight.inbound_departure_time)}</div>
                                     </div>
                                     <ArrowRight size={20} className="text-gray-400" />
                                     <div className="text-right">
                                       <div className="text-xs text-gray-600">도착</div>
-                                      <div className="text-lg font-bold text-gray-900">{formatTime(selectedFlight.inbound_arrival_time)}</div>
+                                      <div className="text-lg font-bold text-gray-900 dark:text-white dark:text-white">{formatTime(selectedFlight.inbound_arrival_time)}</div>
                                       <div className="text-xs text-gray-500">{formatDate(selectedFlight.inbound_arrival_time)}</div>
                                     </div>
                                   </div>
@@ -844,7 +844,7 @@ useEffect(() => {
                           </div>
                           <div className="p-8 flex-1 flex flex-col justify-center">
                             <div className="mb-6">
-                              <h4 className="text-3xl font-bold text-gray-900 mb-2">{selectedHotel.name || '숙소 정보'}</h4>
+                              <h4 className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white dark:text-white mb-2">{selectedHotel.name || '숙소 정보'}</h4>
                               <p className="text-gray-500 flex items-center gap-1.5">
                                 <MapPin size={16} /> {selectedHotel.location || '위치 미정'}
                               </p>
@@ -875,7 +875,7 @@ useEffect(() => {
         <div className="text-center mt-8 mb-4 flex gap-4 justify-center">
           <button 
             onClick={() => navigate('/saved')} 
-            className="bg-gray-200 text-gray-700 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-300 transition-all"
+            className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all"
           >
             목록으로
           </button>
@@ -955,7 +955,7 @@ useEffect(() => {
                 toast('저장 중 오류가 발생했습니다.', 'error');
               }
             }}
-            className="bg-gray-900 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-gray-800 transition-all"
+            className="bg-gray-900 dark:bg-blue-600 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-gray-800 dark:hover:bg-blue-700 transition-all"
           >
             여행 계획 저장하기
           </button>
