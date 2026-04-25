@@ -56,16 +56,13 @@ class ScoringService:
         - 추정 비용: 식비, 현지 교통비, 액티비티 비용
         """
         # ✅ flight_quote 처리 (리스트 또는 딕셔너리)
+        def _extract_flight_price(f):
+            return f.get("price_krw") or f.get("price_total") or f.get("price") or 0
+
         if isinstance(flight_quote, list):
-            # 리스트인 경우: 첫 번째 항공편 사용
-            if flight_quote:
-                first_flight = flight_quote[0]
-                flight_cost = first_flight.get("price_total", 0) or first_flight.get("price", 0)
-            else:
-                flight_cost = 0
+            flight_cost = _extract_flight_price(flight_quote[0]) if flight_quote else 0
         elif isinstance(flight_quote, dict):
-            # 딕셔너리인 경우: 직접 사용
-            flight_cost = flight_quote.get("price_total", 0) or flight_quote.get("price", 0)
+            flight_cost = _extract_flight_price(flight_quote)
         else:
             flight_cost = 0
         

@@ -72,6 +72,8 @@ class TripService:
             cost_breakdown_chart = self.scoring_service.calculate_cost_breakdown(
                 cost_info.get('costs_by_category', {})
             )
+            print(f"[TripService] 📊 costs_by_category: {cost_info.get('costs_by_category', {})}")
+            print(f"[TripService] 📊 cost_breakdown_chart: {cost_breakdown_chart}")
 
             # Step 4: POI 점수 산정
             scored_pois = self.scoring_service.score_poi_candidates(

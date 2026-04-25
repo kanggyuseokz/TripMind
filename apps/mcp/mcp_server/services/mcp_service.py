@@ -115,46 +115,26 @@ class MCPService:
         
         # MD 파일 읽기
         try:
-            # ✅ 현재 파일의 절대 경로 기준으로 계산
-            current_file = os.path.abspath(__file__)
-            print(f"[MCP] 📂 Current file: {current_file}")
-            
-            # services/mcp_service.py → services 폴더
-            services_dir = os.path.dirname(current_file)
-            print(f"[MCP] 📂 Services dir: {services_dir}")
-            
-            # services → mcp_server 폴더
-            mcp_server_dir = os.path.dirname(services_dir)
-            print(f"[MCP] 📂 MCP server dir: {mcp_server_dir}")
-            
-            # mcp_server/prompts 폴더
-            prompts_dir = os.path.join(mcp_server_dir, 'prompts')
-            print(f"[MCP] 📂 Prompts dir: {prompts_dir}")
-            print(f"[MCP] 📂 Prompts dir exists: {os.path.exists(prompts_dir)}")
-            
-            # ✅ 최종 파일 경로 (매핑된 스타일 사용)
+            prompts_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'prompts')
             prompt_path = os.path.join(prompts_dir, f'schedule_style_{final_style}.md')
-            print(f"[MCP] 📂 Looking for: {prompt_path}")
-            print(f"[MCP] 📂 File exists: {os.path.exists(prompt_path)}")
-            
-            # 폴더 내 파일 목록 출력
+
+            # ──────────────────────────────────────────────
+            print(f"[MCP] 📄 MD파일 로드: schedule_style_{final_style}.md  (존재: {os.path.exists(prompt_path)})")
             if os.path.exists(prompts_dir):
-                files = os.listdir(prompts_dir)
-                print(f"[MCP] 📂 Files in prompts dir: {files}")
-            
+                available = [f for f in os.listdir(prompts_dir) if f.endswith('.md')]
+                print(f"[MCP] 📂 사용 가능한 MD파일: {available}")
+            # ──────────────────────────────────────────────
+
             with open(prompt_path, 'r', encoding='utf-8') as f:
                 content = f.read()
-                print(f"[MCP] ✅ Loaded {final_style} style guide: {len(content)} chars")
-                return content
-                
+            print(f"[MCP] ✅ MD파일 로드 성공: schedule_style_{final_style}.md ({len(content)}자)")
+            return content
+
         except FileNotFoundError:
-            print(f"[MCP] ❌ Style file not found: schedule_style_{final_style}.md")
-            print(f"[MCP] ❌ Searched path: {prompt_path}")
+            print(f"[MCP] ❌ MD파일 없음: schedule_style_{final_style}.md  (경로: {prompt_path})")
             return ""
         except Exception as e:
-            print(f"[MCP] ❌ Failed to load style prompt: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"[MCP] ❌ MD파일 로드 실패: {e}")
             return ""
     
     def _generate_schedule_with_style(

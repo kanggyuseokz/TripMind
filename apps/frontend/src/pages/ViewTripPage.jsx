@@ -176,6 +176,7 @@ export default function ViewTripPage() {
         // ✅ cost_breakdown_chart: 백엔드 실데이터 우선 사용
         const CHART_COLORS = ['#4F46E5', '#7C3AED', '#F59E0B', '#10B981'];
         const rawCostBreakdown = mcpData.cost_breakdown_chart || [];
+        console.log('[ViewTrip] cost_breakdown_chart:', rawCostBreakdown);
         const costBreakdownData = rawCostBreakdown.length > 0
           ? rawCostBreakdown.map((item, i) => ({
               name: item.category,
