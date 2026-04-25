@@ -252,13 +252,6 @@ export default function PlannerPage() {
     if (progressTimer.current) clearTimeout(progressTimer.current);
   };
 
-  const buildStyleText = () => {
-    const styleLabels = selectedStyles.map(id => TRAVEL_STYLES.find(s => s.id === id)?.label).filter(Boolean);
-    const parts = styleLabels.length > 0 ? [styleLabels.join(', ') + ' 스타일 여행'] : [];
-    if (styleNote.trim()) parts.push(styleNote.trim());
-    return parts.join('. ') || '자유 여행';
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -266,6 +259,14 @@ export default function PlannerPage() {
     startProgressSimulation();
 
     const destName = destination.split('(')[0].trim();
+    // 선택된 스타일 중 첫 번째가 primary, 나머지는 secondary
+    const primaryStyle = selectedStyles[0] || 'sightseeing';
+    const styleLabels = selectedStyles.map(id => TRAVEL_STYLES.find(s => s.id === id)?.label).filter(Boolean);
+    const styleText = [
+      styleLabels.length > 0 ? styleLabels.join(', ') + ' 스타일 여행' : '',
+      styleNote.trim()
+    ].filter(Boolean).join('. ') || '자유 여행';
+
     const requestBody = {
       origin,
       destination: destName,
@@ -273,7 +274,9 @@ export default function PlannerPage() {
       end_date: endDate,
       party_size: parseInt(partySize),
       budget: parseInt(budget),
-      preferred_style_text: buildStyleText(),
+      travel_style: primaryStyle,          // 체크박스 ID 직접 전달
+      secondary_styles: selectedStyles.slice(1), // 나머지 스타일
+      preferred_style_text: styleText,     // LLM 참고용 텍스트
     };
 
     try {

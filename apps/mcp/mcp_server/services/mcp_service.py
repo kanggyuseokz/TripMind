@@ -184,8 +184,17 @@ class MCPService:
             print("[MCP] ⚠️ LLM not available, using default schedule")
             return self._generate_default_schedule(start_date, end_date)
         
-        # 1. 스타일 프롬프트 로드 (매핑 로직 포함)
+        # 1. 스타일 프롬프트 로드 (primary + secondary)
         style_guide = self._load_schedule_style_prompt(travel_style)
+        # interests에 valid style ID가 있으면 secondary md도 로드해서 추가
+        secondary_guides = []
+        for interest in interests:
+            if interest != travel_style and interest in self.valid_styles:
+                sg = self._load_schedule_style_prompt(interest)
+                if sg:
+                    secondary_guides.append(f"### 보조 스타일 ({interest})\n{sg}")
+        if secondary_guides:
+            style_guide += "\n\n## 보조 스타일 가이드 (참고)\n" + "\n\n".join(secondary_guides)
         
         # 2. POI 필터링 (평점 4.0 이상)
         high_rated_pois = [
@@ -420,41 +429,36 @@ class MCPService:
                 ['관광']
             )
             
-            # ✅ 디버깅: 받은 데이터 확인
-            print(f"[MCP] 🔍 DEBUG - Raw interests: {interests}")
-            print(f"[MCP] 🔍 DEBUG - llm_data keys: {list(llm_data.keys()) if isinstance(llm_data, dict) else 'Not dict'}")
-            if 'travel_style' in llm_data:
-                print(f"[MCP] 🔍 DEBUG - Original LLM travel_style: '{llm_data['travel_style']}'")
-            
-            # ✅ interests 기반으로 travel_style 직접 결정 (LLM 결과 무시)
-            interests_str = ' '.join(interests).lower() if interests else ''
-            print(f"[MCP] 🔍 DEBUG - interests_str for matching: '{interests_str}'")
-            
-            if any(keyword in interests_str for keyword in ['휴양', '휴식', '스파', '힐링', '리조트']):
-                travel_style = 'relaxation'
-                print(f"[MCP] 🔄 travel_style set to 'relaxation' (based on interests: {interests})")
-                print(f"[MCP] ✅ DEBUG - Matched relaxation keywords in: '{interests_str}'")
-            elif any(keyword in interests_str for keyword in ['맛집', '음식', '미식', '식도락']):
-                travel_style = 'foodie'
-                print(f"[MCP] 🔄 travel_style set to 'foodie' (based on interests: {interests})")
-                print(f"[MCP] ✅ DEBUG - Matched foodie keywords in: '{interests_str}'")
-            elif any(keyword in interests_str for keyword in ['쇼핑', '면세점', '구매']):
-                travel_style = 'shopping'
-                print(f"[MCP] 🔄 travel_style set to 'shopping' (based on interests: {interests})")
-                print(f"[MCP] ✅ DEBUG - Matched shopping keywords in: '{interests_str}'")
-            elif any(keyword in interests_str for keyword in ['액티비티', '체험', '스포츠', '등산']):
-                travel_style = 'activity'
-                print(f"[MCP] 🔄 travel_style set to 'activity' (based on interests: {interests})")
-                print(f"[MCP] ✅ DEBUG - Matched activity keywords in: '{interests_str}'")
+            print(f"[MCP] 🔍 Raw interests: {interests}")
+
+            # ✅ 1순위: interests에 valid style ID가 직접 포함된 경우 (체크박스 직접 전달)
+            explicit_style = next((i for i in interests if i in self.valid_styles), None)
+            if explicit_style:
+                travel_style = explicit_style
+                print(f"[MCP] ✅ Explicit style ID from interests: '{travel_style}'")
             else:
-                # ✅ 매핑되지 않으면 LLM 결과 사용
-                travel_style = (
+                # ✅ 2순위: llm_data의 travel_style 필드
+                llm_style = (
                     self._get_safe_value(llm_data, 'travel_style') or
-                    self._get_safe_value(llm_parsed_data, 'travel_style') or
-                    'sightseeing'
+                    self._get_safe_value(llm_parsed_data, 'travel_style')
                 )
-                print(f"[MCP] 📋 travel_style from LLM: '{travel_style}' (interests: {interests})")
-                print(f"[MCP] ⚠️ DEBUG - No interests match found for: '{interests_str}'")
+                if llm_style and llm_style in self.valid_styles:
+                    travel_style = llm_style
+                    print(f"[MCP] ✅ travel_style from LLM field: '{travel_style}'")
+                else:
+                    # ✅ 3순위: interests 한국어 키워드 매핑
+                    interests_str = ' '.join(interests).lower()
+                    if any(k in interests_str for k in ['휴양', '휴식', '스파', '힐링', '리조트']):
+                        travel_style = 'relaxation'
+                    elif any(k in interests_str for k in ['맛집', '음식', '미식', '식도락']):
+                        travel_style = 'foodie'
+                    elif any(k in interests_str for k in ['쇼핑', '면세점', '구매']):
+                        travel_style = 'shopping'
+                    elif any(k in interests_str for k in ['액티비티', '체험', '스포츠', '등산']):
+                        travel_style = 'activity'
+                    else:
+                        travel_style = 'sightseeing'
+                    print(f"[MCP] ✅ travel_style from keyword matching: '{travel_style}'")
             
             # ✅ 최종 확인
             print(f"[MCP] 🎯 FINAL DEBUG - travel_style before schedule generation: '{travel_style}'")

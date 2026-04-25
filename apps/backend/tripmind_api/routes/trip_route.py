@@ -29,13 +29,35 @@ def plan_trip():
         party_size = data.get('party_size', 1)
         budget = data.get('budget', 0)
         preferred_style_text = data.get('preferred_style_text', '')
+        explicit_travel_style = data.get('travel_style', '')   # 체크박스에서 직접 전달
+        secondary_styles = data.get('secondary_styles', [])
 
         # ✅ 유효성 검사
         if not all([destination, start_date, end_date]):
             return jsonify({"error": "도착지와 날짜는 필수입니다."}), 400
 
-        # ✅ LLM으로 전체 데이터 파싱
-        user_request = f"""
+        valid_styles = ['relaxation', 'sightseeing', 'foodie', 'activity', 'shopping']
+
+        # ✅ 명시적 travel_style이 있으면 LLM 파싱 스킵
+        if explicit_travel_style and explicit_travel_style in valid_styles:
+            print(f"[TripRoute] ✅ 명시적 travel_style 사용: '{explicit_travel_style}' (LLM 파싱 스킵)")
+            # interests: primary + secondary styles를 모두 포함
+            all_styles = [explicit_travel_style] + [s for s in secondary_styles if s in valid_styles]
+            parsed_data = {
+                'origin': origin,
+                'destination': destination,
+                'start_date': start_date,
+                'end_date': end_date,
+                'party_size': int(party_size),
+                'budget_per_person': {'amount': int(budget), 'currency': 'KRW'},
+                'is_domestic': False,
+                'travel_style': explicit_travel_style,
+                'interests': all_styles,
+                'preferred_style_text': preferred_style_text,
+            }
+        else:
+            # ✅ 기존 LLM 파싱 (명시적 스타일 없을 때 fallback)
+            user_request = f"""
 출발지: {origin}
 도착지: {destination}
 여행 기간: {start_date} ~ {end_date}
@@ -43,29 +65,17 @@ def plan_trip():
 1인 예산: {budget}원
 여행 스타일: {preferred_style_text}
 """
-        
-        print(f"[TripRoute] 📝 User Request:\n{user_request}")
-        
-        # LLM 파싱
-        parsed_data = llm_service.parse_user_request(user_request)
-        
-        print(f"[TripRoute] 🎯 LLM Parsed Data: {parsed_data}")
+            print(f"[TripRoute] 📝 LLM 파싱 진행:\n{user_request}")
+            parsed_data = llm_service.parse_user_request(user_request)
+            parsed_data['start_date'] = start_date
+            parsed_data['end_date'] = end_date
+            parsed_data['party_size'] = int(party_size)
+            parsed_data['budget_per_person'] = {'amount': int(budget), 'currency': 'KRW'}
+            if origin and '(' in origin:
+                parsed_data['origin'] = origin
 
-        # ✅ 프론트엔드에서 받은 확정된 값으로 덮어쓰기
-        parsed_data['start_date'] = start_date
-        parsed_data['end_date'] = end_date
-        parsed_data['party_size'] = int(party_size)
-        parsed_data['budget_per_person'] = {
-            'amount': int(budget),
-            'currency': 'KRW'
-        }
-        
-        # origin이 명확하면 그대로 사용
-        if origin and '(' in origin:
-            parsed_data['origin'] = origin
-        
         request_data = {
-            'preferred_style': parsed_data.get('interests', ['관광'])[0] if parsed_data.get('interests') else '관광',
+            'preferred_style': parsed_data.get('travel_style', 'sightseeing'),
             'user_input': preferred_style_text
         }
 
