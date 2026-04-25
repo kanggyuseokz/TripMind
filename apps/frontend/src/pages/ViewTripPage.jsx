@@ -82,7 +82,7 @@ const DonutChart = ({ data, size = 160, strokeWidth = 20 }) => {
           return <circle key={index} cx={size / 2} cy={size / 2} r={radius} fill="transparent" stroke={colors[index % colors.length]} strokeWidth={strokeWidth} strokeDasharray={strokeDasharray} strokeDashoffset={strokeDashoffset} strokeLinecap="round" className="transition-all duration-1000 ease-out"/>;
         })}
       </svg>
-      <div className="absolute text-center"><p className="text-2xl font-bold text-gray-800">{data[0]?.value}%</p><p className="text-xs font-medium text-gray-400">{data[0]?.name}</p></div>
+      <div className="absolute text-center"><p className="text-2xl font-bold text-gray-800 dark:text-white">{data[0]?.value}%</p><p className="text-xs font-medium text-gray-400 dark:text-gray-300">{data[0]?.name}</p></div>
     </div>
   );
 };
@@ -311,7 +311,7 @@ export default function ViewTripPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-blue-600" size={32}/>
           <span className="text-gray-500 dark:text-gray-400 font-medium">여행 정보를 불러오는 중...</span>
@@ -439,22 +439,29 @@ export default function ViewTripPage() {
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-gray-400 dark:text-gray-500">예산 분석 데이터가 없습니다.</p>
+              <div className="flex flex-col items-center gap-3 py-4">
+                <div className="w-16 h-16 rounded-full border-4 border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                  <Wallet size={24} className="text-gray-300 dark:text-gray-600" />
+                </div>
+                <p className="text-sm text-gray-400 dark:text-gray-500 text-center">새로 여행을 계획하면<br/>예산 분석이 표시됩니다.</p>
+              </div>
             )}
           </div>
           <div className="space-y-4">
             <OverviewCard title="인원" value={`${tripPlan.head_count}명`} icon={<UsersIcon size={20} />} />
             <OverviewCard title="여행 기간" value={tripPlan.durationText} subValue={`${tripPlan.startDate} ~ ${tripPlan.endDate}`} icon={<CalendarIcon size={20} />} />
             
-            {/* ✅ 1인 예산을 DB 저장값으로 간단 표시 */}
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+            {/* 1인 예산 */}
+            <div className="bg-white dark:bg-gray-900 p-5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
               <div className="flex items-start gap-3">
-                <div className="p-3 bg-blue-50 text-blue-600 rounded-full shrink-0">
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full shrink-0">
                   <WalletIcon size={20} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">1인 예산</p>
-                  <p className="font-bold text-lg text-gray-900 dark:text-white dark:text-white">₩{(tripPlan.total_cost || 0).toLocaleString()}</p>
+                  <p className="font-bold text-lg text-gray-900 dark:text-white">
+                    {tripPlan.total_cost ? `₩${tripPlan.total_cost.toLocaleString()}` : '미입력'}
+                  </p>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">실제 계산된 비용</p>
                 </div>
               </div>
@@ -583,10 +590,10 @@ export default function ViewTripPage() {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <div className="bg-blue-50 p-4 rounded-xl">
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl">
                           <div className="flex items-center gap-2 mb-3">
-                            <Plane size={16} className="text-blue-600" />
-                            <span className="font-bold text-blue-900">출국</span>
+                            <Plane size={16} className="text-blue-600 dark:text-blue-400" />
+                            <span className="font-bold text-blue-900 dark:text-blue-100">출국</span>
                           </div>
                           <div className="space-y-2">
                             <div className="flex justify-between items-center">
@@ -606,10 +613,10 @@ export default function ViewTripPage() {
                         </div>
 
                         {bestFlight.inbound_departure_time && (
-                          <div className="bg-green-50 p-4 rounded-xl">
+                          <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl">
                             <div className="flex items-center gap-2 mb-3">
-                              <Plane size={16} className="text-green-600 transform rotate-180" />
-                              <span className="font-bold text-green-900">입국</span>
+                              <Plane size={16} className="text-green-600 dark:text-green-400 transform rotate-180" />
+                              <span className="font-bold text-green-900 dark:text-green-100">입국</span>
                             </div>
                             <div className="space-y-2">
                               <div className="flex justify-between items-center">
