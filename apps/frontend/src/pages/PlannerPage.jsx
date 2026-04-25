@@ -91,7 +91,6 @@ const TripPlanningLoader = ({ percent }) => {
         <p className="text-xs text-gray-400 text-center mt-5">보통 30~60초 소요됩니다</p>
       </div>
     </div>
-    </>
   );
 };
 const MapPinIcon = () => <MapPin size={20} />;
@@ -350,5 +349,6 @@ export default function PlannerPage() {
         </form>
       </div>
     </div>
+    </>
   );
 }
