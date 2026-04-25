@@ -226,56 +226,53 @@ class MCPService:
 
         print(f"[MCP] 🏪 POI Categories - Restaurants: {len(restaurants)}, Cafes: {len(cafes)}, Attractions: {len(attractions)}")
         
-        # 4. LLM 프롬프트 생성
-        # POI를 미리 JSON 문자열로 변환
-        restaurants_json = json.dumps(
-            [{"name": r.get("name"), "rating": r.get("rating"), "vicinity": r.get("vicinity")} 
-             for r in restaurants[:10]], 
-            ensure_ascii=False, indent=2
-        )
-        
-        cafes_json = json.dumps(
-            [{"name": c.get("name"), "rating": c.get("rating"), "vicinity": c.get("vicinity")} 
-             for c in cafes[:10]], 
-            ensure_ascii=False, indent=2
-        )
-        
-        attractions_json = json.dumps(
-            [{"name": a.get("name"), "rating": a.get("rating"), "vicinity": a.get("vicinity")} 
-             for a in attractions[:10]], 
-            ensure_ascii=False, indent=2
-        )
-        
+        # 4. LLM 프롬프트 생성 — 일자별 POI 배분 (중복 방지)
+        num_days = (end_date - start_date).days + 1
+
+        # 일자별로 POI를 미리 분배해서 프롬프트에 포함 (같은 POI 반복 방지)
+        def _slice_for_day(lst, day_idx, per_day=3):
+            start = (day_idx * per_day) % max(len(lst), 1)
+            items = lst[start:start + per_day]
+            if len(items) < per_day:
+                items += lst[:per_day - len(items)]
+            return items
+
+        days_poi_sections = []
+        for d in range(num_days):
+            day_restaurants = _slice_for_day(restaurants, d, 2)
+            day_cafes       = _slice_for_day(cafes, d, 1)
+            day_attractions = _slice_for_day(attractions, d, 3)
+            days_poi_sections.append(
+                f"### {d+1}일차 배정 장소\n"
+                f"관광: {', '.join(a.get('name','') for a in day_attractions)}\n"
+                f"식사: {', '.join(r.get('name','') for r in day_restaurants)}\n"
+                f"카페: {', '.join(c.get('name','') for c in day_cafes)}"
+            )
+        days_poi_text = "\n".join(days_poi_sections)
+
         prompt = f"""
 당신은 전문 여행 플래너입니다. 상세한 날짜별 여행 일정을 한국어로 작성해주세요.
 
 # 여행 정보
 - 여행지: {destination}
 - 날짜: {start_date.isoformat()} ~ {end_date.isoformat()}
-- 기간: {(end_date - start_date).days + 1}일
+- 기간: {num_days}일
 - 여행 스타일: {travel_style}
 - 관심사: {', '.join(interests)}
 
 # 스타일 가이드
 {style_guide}
 
-# 이용 가능한 장소 (평점 4.0+)
-## 음식점 (평점 4.3+)
-{restaurants_json}
+# 일자별 배정 장소 (반드시 이 장소들을 poi_name으로 사용)
+{days_poi_text}
 
-## 카페 (평점 4.2+)
-{cafes_json}
-
-## 관광명소 (평점 4.0+)
-{attractions_json}
-
-# 작성 규칙
-1. 스타일 가이드를 엄격히 따를 것
-2. 위의 POI 목록에 있는 실제 장소명을 poi_name에 그대로 사용할 것
-3. description은 반드시 한국어로 작성할 것 (예: "아사쿠사 신사 방문 및 전통 거리 구경")
-4. 식사 시간은 현실적으로 (점심 12:00~13:30, 저녁 18:00~19:30)
-5. 이동 시간 및 휴식 시간 포함
-6. 하루에 무리하지 않는 일정으로 구성
+# 절대 규칙 (위반 금지)
+1. **같은 poi_name을 하루 안에 두 번 이상 쓰지 말 것** — 각 이벤트는 반드시 서로 다른 장소
+2. 위 "일자별 배정 장소"에 있는 이름을 poi_name 필드에 그대로 사용할 것
+3. "(인근 POI 활용)" 같은 표현 절대 금지 — 구체적인 장소명만 사용
+4. description은 반드시 한국어로 작성 (예: "루브르 박물관 관람 및 모나리자 감상")
+5. 식사 시간: 점심 12:00~13:30, 저녁 18:30~20:00
+6. 이동·휴식 시간 포함, 하루 5~7개 이벤트
 
 반드시 아래 형식의 JSON 배열만 반환하세요 (코드블록 없이):
 [
@@ -287,8 +284,8 @@ class MCPService:
       {{
         "time_slot": "09:00",
         "description": "한국어로 작성한 활동 설명",
-        "icon": "utensils",
-        "poi_name": "장소 이름 (POI 목록에서 가져올 것)",
+        "icon": "camera",
+        "poi_name": "위 배정 장소 중 하나의 이름",
         "poi_rating": 4.5
       }}
     ]
