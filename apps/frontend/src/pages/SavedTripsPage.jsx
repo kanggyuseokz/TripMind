@@ -6,27 +6,55 @@ import { useToast } from '../components/Toast';
 
 const API_BASE_URL = "http://127.0.0.1:8080/api/trip";
 
-// 도시별 이미지 매핑
+// 도시별 이미지 매핑 (한국어·영어 키워드 → Unsplash 사진)
+const CITY_IMAGES = [
+  // 일본
+  { keys: ['도쿄', 'tokyo'],        url: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&q=80' },
+  { keys: ['오사카', 'osaka', 'kix'], url: 'https://images.unsplash.com/photo-1590559399607-57523cd47a61?w=800&q=80' },
+  { keys: ['후쿠오카', 'fukuoka'],   url: 'https://images.unsplash.com/photo-1601823984263-6936e89c9ca9?w=800&q=80' },
+  { keys: ['삿포로', 'sapporo'],     url: 'https://images.unsplash.com/photo-1579401772658-2029589d980f?w=800&q=80' },
+  { keys: ['오키나와', 'okinawa'],   url: 'https://images.unsplash.com/photo-1590077428593-a55bb07c4665?w=800&q=80' },
+  { keys: ['교토', 'kyoto'],         url: 'https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=800&q=80' },
+  { keys: ['나고야', 'nagoya'],      url: 'https://images.unsplash.com/photo-1580789958947-7da6a0551440?w=800&q=80' },
+  // 한국
+  { keys: ['서울', 'seoul'],         url: 'https://images.unsplash.com/photo-1517154421773-0529f29ea451?w=800&q=80' },
+  { keys: ['부산', 'busan'],         url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80' },
+  { keys: ['제주', 'jeju'],          url: 'https://images.unsplash.com/photo-1548115184-bc6544d06a58?w=800&q=80' },
+  // 동남아
+  { keys: ['다낭', 'da nang', 'danang'], url: 'https://images.unsplash.com/photo-1559592413-7cec430aaec3?w=800&q=80' },
+  { keys: ['방콕', 'bangkok'],       url: 'https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=800&q=80' },
+  { keys: ['발리', 'bali'],          url: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=800&q=80' },
+  { keys: ['싱가포르', 'singapore'], url: 'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=800&q=80' },
+  { keys: ['세부', 'cebu'],          url: 'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?w=800&q=80' },
+  { keys: ['하노이', 'hanoi'],       url: 'https://images.unsplash.com/photo-1509030450996-dd1a26dda07a?w=800&q=80' },
+  { keys: ['호치민', 'ho chi minh'], url: 'https://images.unsplash.com/photo-1583417267826-aebc4d1542e1?w=800&q=80' },
+  { keys: ['쿠알라룸푸르', 'kuala lumpur', 'kl'], url: 'https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=800&q=80' },
+  // 유럽
+  { keys: ['파리', 'paris', 'charles de gaulle', 'cdg'], url: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800&q=80' },
+  { keys: ['런던', 'london', 'heathrow', 'lhr'],         url: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&q=80' },
+  { keys: ['로마', 'rome'],          url: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=800&q=80' },
+  { keys: ['바르셀로나', 'barcelona'], url: 'https://images.unsplash.com/photo-1523531294919-4bcd7c65e216?w=800&q=80' },
+  { keys: ['암스테르담', 'amsterdam'], url: 'https://images.unsplash.com/photo-1534351590666-13e3e96b5702?w=800&q=80' },
+  { keys: ['프라하', 'prague'],      url: 'https://images.unsplash.com/photo-1541849546-216549ae216d?w=800&q=80' },
+  { keys: ['빈', 'vienna'],          url: 'https://images.unsplash.com/photo-1516550893923-42d28e5677af?w=800&q=80' },
+  { keys: ['취리히', 'zurich'],      url: 'https://images.unsplash.com/photo-1515488764276-beab7607c1e6?w=800&q=80' },
+  // 미주
+  { keys: ['뉴욕', 'new york', 'jfk', 'lga'], url: 'https://images.unsplash.com/photo-1496442226666-8d4a0e2907eb?w=800&q=80' },
+  { keys: ['로스앤젤레스', 'los angeles', 'la', 'lax'], url: 'https://images.unsplash.com/photo-1544413660-299165566b1d?w=800&q=80' },
+  { keys: ['하와이', 'hawaii', 'honolulu'], url: 'https://images.unsplash.com/photo-1507876466758-0f33219249fc?w=800&q=80' },
+  { keys: ['라스베이거스', 'las vegas'],    url: 'https://images.unsplash.com/photo-1581351721010-8cf859cb14a4?w=800&q=80' },
+  // 기타
+  { keys: ['두바이', 'dubai'],       url: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80' },
+  { keys: ['시드니', 'sydney'],      url: 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=800&q=80' },
+];
+
 const getCityImage = (destination) => {
-  if (!destination) return 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80';
-  
-  const keyword = destination.split('/')[0].split('(')[0].trim();
-  const images = { 
-    '오사카': 'https://images.unsplash.com/photo-1590559399607-57523cd47a61?w=800&q=80', 
-    '도쿄': 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&q=80', 
-    '다낭': 'https://images.unsplash.com/photo-1559592413-7cec430aaec3?w=800&q=80', 
-    '제주': 'https://images.unsplash.com/photo-1548115184-bc6544d06a58?w=800&q=80', 
-    '파리': 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800&q=80', 
-    '뉴욕': 'https://images.unsplash.com/photo-1496442226666-8d4a0e2907eb?w=800&q=80', 
-    '방콕': 'https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=800&q=80', 
-    '런던': 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&q=80',
-    '후쿠오카': 'https://images.unsplash.com/photo-1624329243765-b1e102293478?w=800&q=80',
-    '삿포로': 'https://images.unsplash.com/photo-1579401772658-2029589d980f?w=800&q=80',
-    '서울': 'https://images.unsplash.com/photo-1517154421773-0529f29ea451?w=800&q=80'
-  };
-  
-  const foundKey = Object.keys(images).find(key => keyword.includes(key));
-  return foundKey ? images[foundKey] : 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80';
+  const DEFAULT = 'https://images.unsplash.com/photo-1488085061387-422e29b40080?w=800&q=80';
+  if (!destination) return DEFAULT;
+
+  const lower = destination.toLowerCase();
+  const match = CITY_IMAGES.find(({ keys }) => keys.some(k => lower.includes(k)));
+  return match ? match.url : DEFAULT;
 };
 
 // ✅ 날짜 차이 계산 함수 (개선)
