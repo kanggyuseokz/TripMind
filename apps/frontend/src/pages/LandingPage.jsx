@@ -9,7 +9,10 @@ export default function LandingPage() {
   const [error, setError] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const goLogin = () => navigate('/login');
+  const goLogin = () => {
+    const token = localStorage.getItem('token');
+    navigate(token ? '/planner' : '/login');
+  };
 
   const handlePlanTrip = () => {
     if (!prompt.trim()) return;
