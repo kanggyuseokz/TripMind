@@ -1,12 +1,99 @@
 // apps/frontend/src/pages/PlannerPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Loader2, MapPin, Calendar, Users, Wand, Wallet, Edit, Plane, ArrowLeft
+  Loader2, MapPin, Calendar, Users, Wand, Wallet, Edit, Plane, ArrowLeft,
+  BedDouble, CheckCircle2, Clock
 } from 'lucide-react';
 
 // --- 아이콘 컴포넌트 ---
 const LoaderIcon = () => <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" />;
+
+// 각 단계 정의: targetPercent까지 durationMs 동안 진행
+const PLAN_STEPS = [
+  { id: 'flight',   label: '항공권 검색중...',    icon: Plane,       targetPercent: 30, durationMs: 14000 },
+  { id: 'hotel',    label: '호텔 검색중...',       icon: BedDouble,   targetPercent: 62, durationMs: 14000 },
+  { id: 'schedule', label: 'AI 일정 생성중...',    icon: Calendar,    targetPercent: 92, durationMs: 20000 },
+  { id: 'done',     label: '여행 계획 완성!',      icon: CheckCircle2,targetPercent: 100, durationMs: 400 },
+];
+
+const TripPlanningLoader = ({ percent }) => {
+  const activeStep = PLAN_STEPS.findIndex((s, i) => {
+    const prev = PLAN_STEPS[i - 1]?.targetPercent ?? 0;
+    return percent >= prev && percent < s.targetPercent;
+  });
+  const currentStep = activeStep === -1 ? PLAN_STEPS.length - 1 : activeStep;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
+        <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">여행 계획을 만들고 있어요</h2>
+        <p className="text-sm text-gray-500 text-center mb-6">AI가 최적의 일정을 분석 중입니다</p>
+
+        {/* 전체 진행바 */}
+        <div className="mb-6">
+          <div className="flex justify-between text-xs text-gray-500 mb-1">
+            <span>진행률</span>
+            <span className="font-bold text-blue-600">{Math.round(percent)}%</span>
+          </div>
+          <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+        </div>
+
+        {/* 단계별 목록 */}
+        <div className="space-y-3">
+          {PLAN_STEPS.map((step, idx) => {
+            const isDone = percent >= step.targetPercent;
+            const isActive = idx === currentStep;
+            const Icon = step.icon;
+
+            return (
+              <div
+                key={step.id}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+                  isDone ? 'bg-green-50' :
+                  isActive ? 'bg-blue-50 shadow-sm' :
+                  'bg-gray-50 opacity-40'
+                }`}
+              >
+                <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                  isDone ? 'bg-green-100 text-green-600' :
+                  isActive ? 'bg-blue-100 text-blue-600' :
+                  'bg-gray-200 text-gray-400'
+                }`}>
+                  {isActive && !isDone
+                    ? <Loader2 size={16} className="animate-spin" />
+                    : <Icon size={16} />
+                  }
+                </div>
+                <span className={`text-sm font-medium ${
+                  isDone ? 'text-green-700' :
+                  isActive ? 'text-blue-700' :
+                  'text-gray-400'
+                }`}>
+                  {step.label}
+                </span>
+                {isDone && <CheckCircle2 size={16} className="ml-auto text-green-500 shrink-0" />}
+                {isActive && !isDone && (
+                  <span className="ml-auto text-xs text-blue-400 flex items-center gap-1">
+                    <Clock size={12} /> 진행중
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <p className="text-xs text-gray-400 text-center mt-5">보통 30~60초 소요됩니다</p>
+      </div>
+    </div>
+    </>
+  );
+};
 const MapPinIcon = () => <MapPin size={20} />;
 const CalendarIcon = () => <Calendar size={20} />;
 const UsersIcon = () => <Users size={20} />;
@@ -124,7 +211,9 @@ export default function PlannerPage() {
   const [preferredStyleText, setPreferredStyleText] = useState(initialPrompt);
   const [budget, setBudget] = useState(1000000);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
+  const progressTimer = useRef(null);
 
   useEffect(() => {
     if (initialPrompt) {
@@ -134,10 +223,38 @@ export default function PlannerPage() {
     }
   }, [initialPrompt]);
 
+  const startProgressSimulation = () => {
+    setProgress(0);
+    let current = 0;
+    const steps = [
+      { target: 30, duration: 14000 },
+      { target: 62, duration: 14000 },
+      { target: 92, duration: 20000 },
+    ];
+    let stepIdx = 0;
+    const TICK = 200;
+
+    const tick = () => {
+      if (stepIdx >= steps.length) return;
+      const { target, duration } = steps[stepIdx];
+      const increment = (target - (stepIdx === 0 ? 0 : steps[stepIdx - 1].target)) / (duration / TICK);
+      current = Math.min(current + increment, target);
+      setProgress(Math.round(current * 10) / 10);
+      if (current >= target) stepIdx++;
+      progressTimer.current = setTimeout(tick, TICK);
+    };
+    progressTimer.current = setTimeout(tick, TICK);
+  };
+
+  const stopProgressSimulation = () => {
+    if (progressTimer.current) clearTimeout(progressTimer.current);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    startProgressSimulation();
 
     const destName = destination.split('(')[0].trim();
 
@@ -166,21 +283,24 @@ export default function PlannerPage() {
             throw new Error(data.error || "여행 계획 생성 중 오류가 발생했습니다.");
         }
 
-        navigate('/result', { 
-          state: { 
-            tripData: data
-          } 
-        });
+        stopProgressSimulation();
+        setProgress(100);
+        setTimeout(() => {
+          navigate('/result', { state: { tripData: data } });
+        }, 600);
 
     } catch (err) {
         console.error(err);
+        stopProgressSimulation();
+        setProgress(0);
         setError(err.message);
-    } finally {
         setLoading(false);
     }
   };
 
   return (
+    <>
+    {loading && <TripPlanningLoader percent={progress} />}
     <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8 font-sans text-gray-900 flex items-center justify-center">
       <div className="w-full max-w-4xl mx-auto p-8 bg-white rounded-lg shadow-2xl animate-fade-in relative">
         <button onClick={() => navigate(-1)} className="absolute top-4 left-4 flex items-center gap-1.5 text-gray-400 hover:text-gray-700 text-sm font-medium transition-colors">
@@ -223,9 +343,9 @@ export default function PlannerPage() {
           
           {error && <div className="text-red-600 text-center bg-red-50 p-2 rounded font-medium">{error}</div>}
 
-          <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 flex justify-center items-center gap-2 shadow-lg transition-transform active:scale-95">
+          <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 flex justify-center items-center gap-2 shadow-lg transition-transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
             {loading ? <LoaderIcon /> : <WandIcon />} 
-            <span>{loading ? '여행 계획 생성 중... (AI가 생각 중입니다)' : '여행 계획 생성하기'}</span>
+            <span>{loading ? '여행 계획 생성 중...' : '여행 계획 생성하기'}</span>
           </button>
         </form>
       </div>
