@@ -55,12 +55,12 @@ const formatDate = (isoString) => {
 };
 
 const OverviewCard = ({ title, value, subValue, icon }) => (
-  <div className="flex items-start p-5 bg-white rounded-xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
-    <div className="p-3 bg-blue-50 text-blue-600 rounded-full mr-4 shrink-0">{icon}</div>
+  <div className="flex items-start p-5 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 transition-all hover:shadow-md">
+    <div className="p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full mr-4 shrink-0">{icon}</div>
     <div>
-      <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-      <p className="font-bold text-lg text-gray-900">{value}</p>
-      {subValue && <p className="text-sm text-gray-400 mt-0.5">{subValue}</p>}
+      <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{title}</p>
+      <p className="font-bold text-lg text-gray-900 dark:text-white dark:text-white">{value}</p>
+      {subValue && <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{subValue}</p>}
     </div>
   </div>
 );
@@ -362,7 +362,7 @@ export default function ViewTripPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-blue-600" size={32}/>
-          <span className="text-gray-500 font-medium">여행 정보를 불러오는 중...</span>
+          <span className="text-gray-500 dark:text-gray-400 font-medium">여행 정보를 불러오는 중...</span>
         </div>
       </div>
     );
@@ -374,7 +374,7 @@ export default function ViewTripPage() {
   const bestHotel = tripPlan.hotels[0] || {};
 
   return (
-    <div className="w-full max-w-7xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden animate-fade-in relative pb-12 my-8">
+    <div className="w-full max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden animate-fade-in relative pb-12 my-8">
       {/* 상단 배너 */}
       <div className="relative h-80 bg-cover bg-center group" style={{ backgroundImage: `url(${getBannerImage(tripPlan.destination || tripPlan.trip_summary)})` }}>
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
@@ -440,9 +440,9 @@ export default function ViewTripPage() {
         {/* 편집 취소 확인 모달 */}
         {pendingCancelEdit && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
-            <div className="bg-white rounded-xl p-6 shadow-2xl max-w-sm mx-4 text-center">
-              <p className="font-bold text-gray-900 mb-2">변경사항이 있습니다</p>
-              <p className="text-sm text-gray-500 mb-6">저장하지 않고 종료하면 변경사항이 사라집니다.</p>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl max-w-sm mx-4 text-center">
+              <p className="font-bold text-gray-900 dark:text-white mb-2">변경사항이 있습니다</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">저장하지 않고 종료하면 변경사항이 사라집니다.</p>
               <div className="flex gap-3 justify-center">
                 <button onClick={() => { handleSaveSchedule(); setPendingCancelEdit(false); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700">저장 후 종료</button>
                 <button onClick={confirmCancelEdit} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300">그냥 종료</button>
@@ -466,8 +466,8 @@ export default function ViewTripPage() {
       <div className="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* 좌측 사이드 */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
               <span className="w-1 h-6 bg-blue-500 rounded-full"></span>
               {tripPlan.travel_style} 활동 비율
             </h3>
@@ -491,15 +491,15 @@ export default function ViewTripPage() {
             <OverviewCard title="여행 기간" value={tripPlan.durationText} subValue={`${tripPlan.startDate} ~ ${tripPlan.endDate}`} icon={<CalendarIcon size={20} />} />
             
             {/* ✅ 1인 예산을 DB 저장값으로 간단 표시 */}
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
               <div className="flex items-start gap-3">
                 <div className="p-3 bg-blue-50 text-blue-600 rounded-full shrink-0">
                   <WalletIcon size={20} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-500 mb-2">1인 예산</p>
-                  <p className="font-bold text-lg text-gray-900">₩{(tripPlan.total_cost || 0).toLocaleString()}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">실제 계산된 비용</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">1인 예산</p>
+                  <p className="font-bold text-lg text-gray-900 dark:text-white dark:text-white">₩{(tripPlan.total_cost || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">실제 계산된 비용</p>
                 </div>
               </div>
             </div>
@@ -508,7 +508,7 @@ export default function ViewTripPage() {
 
         {/* 우측 메인 */}
         <div className="lg:col-span-2 space-y-8">
-          <div className="flex gap-2 border-b border-gray-200 overflow-x-auto">
+          <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
             {[
               { id: 'schedule', label: '상세 일정', icon: <Calendar size={18} /> },
               { id: 'flights', label: '항공권', icon: <Plane size={18} /> },
@@ -517,7 +517,7 @@ export default function ViewTripPage() {
               <button 
                 key={tab.id} 
                 onClick={() => setActiveTab(tab.id)} 
-                className={`flex items-center gap-2 px-6 py-4 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === tab.id ? 'border-black text-black' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                className={`flex items-center gap-2 px-6 py-4 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === tab.id ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`}
               >
                 {tab.icon} {tab.label}
               </button>
@@ -527,8 +527,8 @@ export default function ViewTripPage() {
           <div className="min-h-[400px]">
             {/* ✅ 일정 탭 - 편집 모드 추가 */}
             {activeTab === 'schedule' && (
-              <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 animate-in fade-in">
-                <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 animate-in fade-in">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
                   일정표
                   {isEditing && (
                     <span className="text-sm font-normal text-yellow-600 bg-yellow-50 px-2 py-1 rounded">
@@ -552,9 +552,9 @@ export default function ViewTripPage() {
                       <div key={idx} className="relative pl-10">
                         <div className="absolute left-0 top-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md ring-4 ring-white z-10">{dayPlan.day}</div>
                         <div className="mb-4">
-                          <h4 className="text-lg font-bold text-gray-900">{dayPlan.date || `Day ${dayPlan.day}`}</h4>
+                          <h4 className="text-lg font-bold text-gray-900 dark:text-white dark:text-white">{dayPlan.date || `Day ${dayPlan.day}`}</h4>
                           {tripPlan.weatherByDate && tripPlan.weatherByDate[dayPlan.full_date] && (
-                            <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-2">
                               <span>🌤️ {tripPlan.weatherByDate[dayPlan.full_date].condition}</span>
                               <span>{tripPlan.weatherByDate[dayPlan.full_date].temp}°C</span>
                             </div>
@@ -562,8 +562,8 @@ export default function ViewTripPage() {
                         </div>
                         <ul className="space-y-3">
                           {dayPlan.events && dayPlan.events.map((event, eIdx) => (
-                            <li key={eIdx} className="relative flex items-start bg-gray-50 p-4 rounded-xl border border-gray-100">
-                              <span className="flex-shrink-0 mr-4 mt-1 text-gray-500 p-2 bg-white rounded-lg shadow-sm">
+                            <li key={eIdx} className="relative flex items-start bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                              <span className="flex-shrink-0 mr-4 mt-1 text-gray-500 dark:text-gray-400 p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm">
                                 {event.icon === "plane" ? <Plane size={18} className="text-blue-500" /> : 
                                  event.icon === "shopping" ? <ShoppingIcon /> : 
                                  event.icon === "utensils" ? <UtensilsIcon /> : 
@@ -573,8 +573,8 @@ export default function ViewTripPage() {
                                  <Clock size={18} className="text-gray-400" />}
                               </span>
                               <div className="flex-1">
-                                <p className="font-bold text-gray-800 text-sm mb-0.5">{event.time_slot}</p>
-                                <p className="text-gray-900 font-medium text-sm leading-relaxed">
+                                <p className="font-bold text-gray-800 dark:text-gray-200 text-sm mb-0.5">{event.time_slot}</p>
+                                <p className="text-gray-900 dark:text-gray-300 font-medium text-sm leading-relaxed">
                                   {event.description}
                                 </p>
                                 {event.poi_rating && event.poi_rating > 0 && (
@@ -606,15 +606,15 @@ export default function ViewTripPage() {
             {activeTab === 'flights' && (
               <div className="space-y-6 animate-in fade-in">
                 {tripPlan.flights && tripPlan.flights.length > 0 ? (
-                  <div className="bg-white rounded-2xl overflow-hidden shadow-md border border-gray-200">
+                  <div className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-md border border-gray-200 dark:border-gray-700">
                     <div className="p-8">
                       <div className="flex items-center gap-4 mb-6">
                         <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
                           <Plane size={28} />
                         </div>
                         <div>
-                          <h4 className="text-2xl font-bold text-gray-900">{bestFlight.airline || '항공편 정보'}</h4>
-                          <p className="text-gray-500 font-medium">{bestFlight.origin} → {bestFlight.destination}</p>
+                          <h4 className="text-2xl font-bold text-gray-900 dark:text-white">{bestFlight.airline || '항공편 정보'}</h4>
+                          <p className="text-gray-500 dark:text-gray-400 font-medium">{bestFlight.origin} → {bestFlight.destination}</p>
                         </div>
                       </div>
 
@@ -627,15 +627,15 @@ export default function ViewTripPage() {
                           <div className="space-y-2">
                             <div className="flex justify-between items-center">
                               <div>
-                                <div className="text-xs text-gray-600">출발</div>
-                                <div className="text-lg font-bold text-gray-900">{formatTime(bestFlight.outbound_departure_time)}</div>
-                                <div className="text-xs text-gray-500">{formatDate(bestFlight.outbound_departure_time)}</div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">출발</div>
+                                <div className="text-lg font-bold text-gray-900 dark:text-white dark:text-white">{formatTime(bestFlight.outbound_departure_time)}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">{formatDate(bestFlight.outbound_departure_time)}</div>
                               </div>
                               <ArrowRight size={20} className="text-gray-400" />
                               <div className="text-right">
-                                <div className="text-xs text-gray-600">도착</div>
-                                <div className="text-lg font-bold text-gray-900">{formatTime(bestFlight.outbound_arrival_time)}</div>
-                                <div className="text-xs text-gray-500">{formatDate(bestFlight.outbound_arrival_time)}</div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">도착</div>
+                                <div className="text-lg font-bold text-gray-900 dark:text-white dark:text-white">{formatTime(bestFlight.outbound_arrival_time)}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">{formatDate(bestFlight.outbound_arrival_time)}</div>
                               </div>
                             </div>
                           </div>
@@ -650,15 +650,15 @@ export default function ViewTripPage() {
                             <div className="space-y-2">
                               <div className="flex justify-between items-center">
                                 <div>
-                                  <div className="text-xs text-gray-600">출발</div>
-                                  <div className="text-lg font-bold text-gray-900">{formatTime(bestFlight.inbound_departure_time)}</div>
-                                  <div className="text-xs text-gray-500">{formatDate(bestFlight.inbound_departure_time)}</div>
+                                  <div className="text-xs text-gray-600 dark:text-gray-400">출발</div>
+                                  <div className="text-lg font-bold text-gray-900 dark:text-white dark:text-white">{formatTime(bestFlight.inbound_departure_time)}</div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">{formatDate(bestFlight.inbound_departure_time)}</div>
                                 </div>
                                 <ArrowRight size={20} className="text-gray-400" />
                                 <div className="text-right">
-                                  <div className="text-xs text-gray-600">도착</div>
-                                  <div className="text-lg font-bold text-gray-900">{formatTime(bestFlight.inbound_arrival_time)}</div>
-                                  <div className="text-xs text-gray-500">{formatDate(bestFlight.inbound_arrival_time)}</div>
+                                  <div className="text-xs text-gray-600 dark:text-gray-400">도착</div>
+                                  <div className="text-lg font-bold text-gray-900 dark:text-white dark:text-white">{formatTime(bestFlight.inbound_arrival_time)}</div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">{formatDate(bestFlight.inbound_arrival_time)}</div>
                                 </div>
                               </div>
                             </div>
@@ -666,12 +666,12 @@ export default function ViewTripPage() {
                         )}
                       </div>
 
-                      <div className="flex items-center justify-between pt-6 border-t border-gray-100">
+                      <div className="flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-700">
                         <div>
-                          <p className="text-xs text-gray-400 mb-1">예상 가격 (1인, 왕복)</p>
-                          <p className="text-3xl font-extrabold text-blue-600">
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">예상 가격 (1인, 왕복)</p>
+                          <p className="text-3xl font-extrabold text-blue-600 dark:text-blue-400">
                             {(bestFlight.price_krw || bestFlight.price || 0).toLocaleString()}
-                            <span className="text-lg font-medium text-gray-500 ml-1">원</span>
+                            <span className="text-lg font-medium text-gray-500 dark:text-gray-400 ml-1">원</span>
                           </p>
                         </div>
                       </div>
@@ -686,7 +686,7 @@ export default function ViewTripPage() {
             {activeTab === 'hotels' && (
               <div className="space-y-6 animate-in fade-in">
                 {tripPlan.hotels && tripPlan.hotels.length > 0 ? (
-                  <div className="bg-white rounded-2xl overflow-hidden shadow-md border border-gray-200">
+                  <div className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-md border border-gray-200 dark:border-gray-700">
                     <div className="flex flex-col md:flex-row h-full">
                       <div className="relative md:w-2/5 h-64 md:h-auto overflow-hidden">
                         <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80" alt={bestHotel.name} className="absolute inset-0 w-full h-full object-cover" />
@@ -696,17 +696,17 @@ export default function ViewTripPage() {
                       </div>
                       <div className="p-8 flex-1 flex flex-col justify-center">
                         <div className="mb-6">
-                          <h4 className="text-3xl font-bold text-gray-900 mb-2">{bestHotel.name || '숙소 정보'}</h4>
+                          <h4 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{bestHotel.name || '숙소 정보'}</h4>
                           <p className="text-gray-500 flex items-center gap-1.5">
                             <MapPin size={16} /> {bestHotel.location || '위치 미정'}
                           </p>
                         </div>
-                        <div className="flex items-center justify-between pt-6 border-t border-gray-100">
+                        <div className="flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-700">
                           <div>
-                            <p className="text-xs text-gray-400 mb-1">1박 기준 (세금 포함)</p>
-                            <p className="text-3xl font-extrabold text-blue-600">
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">1박 기준 (세금 포함)</p>
+                            <p className="text-3xl font-extrabold text-blue-600 dark:text-blue-400">
                               {(bestHotel.price || 0).toLocaleString()}
-                              <span className="text-lg font-medium text-gray-500 ml-1">원</span>
+                              <span className="text-lg font-medium text-gray-500 dark:text-gray-400 ml-1">원</span>
                             </p>
                           </div>
                         </div>
@@ -725,13 +725,13 @@ export default function ViewTripPage() {
       <div className="text-center mt-8 mb-4 flex gap-4 justify-center">
         <button 
           onClick={() => navigate('/saved')} 
-          className="bg-gray-200 text-gray-700 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-300 transition-all"
+          className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all"
         >
           목록으로
         </button>
         <button 
           onClick={() => navigate('/planner')} 
-          className="bg-gray-900 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-gray-800 transition-all"
+          className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-all"
         >
           새 여행 계획하기
         </button>

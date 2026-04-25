@@ -73,14 +73,14 @@ const LoginForm = ({ setPage }) => {
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-3xl font-bold text-center text-gray-900 mb-4">로그인</h1>
-      <p className="text-gray-600 text-center mb-8">TripMind에 다시 오신 것을 환영합니다!</p>
+      <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-4">로그인</h1>
+      <p className="text-gray-600 dark:text-gray-400 text-center mb-8">TripMind에 다시 오신 것을 환영합니다!</p>
       <form onSubmit={handleLogin} className="space-y-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">이메일 주소</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">이메일 주소</label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Mail size={20} /></span>
-            <input type="email" required className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" />
+            <input type="email" required className="w-full pl-11 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" />
           </div>
         </div>
         <div>
@@ -92,7 +92,7 @@ const LoginForm = ({ setPage }) => {
         </div>
         {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>}
         <div className="text-right">
-          <button type="button" onClick={() => navigate('/forgot-password')} className="text-sm font-medium text-blue-600 hover:text-blue-500 hover:underline">
+          <button type="button" onClick={() => navigate('/forgot-password')} className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 hover:underline">
             비밀번호를 잊으셨나요?
           </button>
         </div>
@@ -100,16 +100,16 @@ const LoginForm = ({ setPage }) => {
           {loading ? '로그인 중...' : '로그인'}
         </button>
         <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300" /></div>
-          <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">또는</span></div>
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300 dark:border-gray-600" /></div>
+          <div className="relative flex justify-center text-sm"><span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">또는</span></div>
         </div>
         <div className="space-y-4">
           <SocialButton icon={<GoogleIcon />} text="Google 계정으로 로그인" bgColor="bg-white border border-gray-300 hover:bg-gray-50" textColor="text-gray-700" onClick={() => toast('Google 로그인은 준비 중입니다.', 'info')} />
           <SocialButton icon={<NaverIcon />} text="네이버 아이디로 로그인" bgColor="bg-[#03C75A] hover:bg-[#03b350]" textColor="text-white" onClick={() => toast('네이버 로그인은 준비 중입니다.', 'info')} />
         </div>
       </form>
-      <p className="text-center text-sm text-gray-600 mt-8">
-        계정이 없으신가요? <button onClick={() => setPage('register')} className="font-semibold text-blue-600 hover:text-blue-500">회원가입</button>
+      <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-8">
+        계정이 없으신가요? <button onClick={() => setPage('register')} className="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-500">회원가입</button>
       </p>
     </div>
   );
@@ -213,14 +213,14 @@ export default function LoginPage() {
   const [page, setPage] = useState('login');
   const navigate = useNavigate();
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 relative">
-      <button onClick={() => navigate('/')} className="absolute top-6 left-6 flex items-center gap-2 text-gray-500 hover:text-black transition-colors font-medium">
+    <div className="min-h-screen flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900 relative">
+      <button onClick={() => navigate('/')} className="absolute top-6 left-6 flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors font-medium">
         <ArrowLeft size={20} /> 메인으로
       </button>
       <div className="mb-8">
-        <a href="/" className="text-4xl font-extrabold font-inter text-gray-900">TripMind</a>
+        <a href="/" className="text-4xl font-extrabold font-inter text-gray-900 dark:text-white">TripMind</a>
       </div>
-      <div className="w-full max-w-md p-8 sm:p-10 bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-100">
+      <div className="w-full max-w-md p-8 sm:p-10 bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
         {page === 'login' ? <LoginForm setPage={setPage} /> : <RegisterForm setPage={setPage} />}
       </div>
     </div>

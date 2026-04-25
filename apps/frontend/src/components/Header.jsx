@@ -20,7 +20,7 @@ export default function Header({
       return (
         <button 
           onClick={() => onNavigate('/login')}
-          className="bg-black text-white px-5 py-2 rounded-full text-sm font-bold hover:bg-gray-800 transition-colors"
+          className="bg-black dark:bg-white text-white dark:text-gray-900 px-5 py-2 rounded-full text-sm font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
         >
           로그인
         </button>
@@ -46,7 +46,7 @@ export default function Header({
 
         <button 
           onClick={() => onNavigate('/mypage')}
-          className="hidden md:flex items-center justify-center w-9 h-9 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors"
+          className="hidden md:flex items-center justify-center w-9 h-9 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-full transition-colors"
           title="마이페이지"
         >
           <User size={18} />
@@ -56,7 +56,7 @@ export default function Header({
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+    <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50 shadow-sm">
       <div className="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         
         {/* 좌측: 메뉴 버튼 + 로고 */}
@@ -64,7 +64,7 @@ export default function Header({
           {!isLoginPage && (
             <button 
               onClick={onOpenSidebar} 
-              className="p-2 -ml-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 -ml-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
             >
               <Menu size={24} />
             </button>
@@ -72,7 +72,7 @@ export default function Header({
 
           <div className="flex ml-3 items-center gap-2 cursor-pointer" onClick={() => onNavigate('/')}>
             <Plane size={24} className="text-blue-600" strokeWidth={2.5} />
-            <span className="text-xl font-bold tracking-tight">TripMind</span>
+            <span className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">TripMind</span>
           </div>
         </div>
 

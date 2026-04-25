@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ToastProvider } from './components/Toast';
+import { ThemeProvider } from './components/ThemeContext';
+import ThemeToggle from './components/ThemeToggle';
 
 import Layout from './components/Layout';
 import LandingPage from './pages/LandingPage';
@@ -15,6 +17,7 @@ import ViewTripPage from './pages/ViewTripPage';
 
 export default function App() {
   return (
+    <ThemeProvider>
     <ToastProvider>
     <Router>
       <Routes>
@@ -34,5 +37,7 @@ export default function App() {
       </Routes>
     </Router>
     </ToastProvider>
+    <ThemeToggle />
+    </ThemeProvider>
   );
 }

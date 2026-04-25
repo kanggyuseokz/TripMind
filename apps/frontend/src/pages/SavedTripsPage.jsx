@@ -181,17 +181,17 @@ export default function SavedTripsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* 헤더 */}
         <div className="flex justify-between items-end mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">나의 여행 보관함</h1>
-            <p className="text-gray-500 mt-2">저장된 여행 계획을 확인하고 관리해보세요.</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">나의 여행 보관함</h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-2">저장된 여행 계획을 확인하고 관리해보세요.</p>
           </div>
           <button 
             onClick={() => navigate('/planner')} 
-            className="bg-black text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-gray-800 transition-colors shadow-sm"
+            className="bg-black dark:bg-white text-white dark:text-gray-900 px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors shadow-sm"
           >
             + 새 여행 만들기
           </button>
@@ -221,7 +221,7 @@ export default function SavedTripsPage() {
                 <div 
                   key={trip.id} 
                   onClick={() => handleCardClick(trip)} 
-                  className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-gray-100 transition-all duration-300 cursor-pointer group relative"
+                  className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-gray-100 dark:border-gray-700 transition-all duration-300 cursor-pointer group relative"
                 >
                   {/* 이미지 영역 */}
                   <div className="h-48 overflow-hidden relative">
@@ -242,7 +242,7 @@ export default function SavedTripsPage() {
                   
                   {/* 정보 영역 */}
                   <div className="p-5">
-                    <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                    <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
                       <div className="flex items-center gap-1.5">
                         <Calendar size={16} className="text-blue-500" />
                         <span>{formatTripDates(trip.start_date, trip.end_date)}</span>
@@ -250,8 +250,8 @@ export default function SavedTripsPage() {
                     </div>
                     
                     {/* 하단 액션 */}
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <div className="text-sm font-medium text-gray-900">
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         총 비용 <span className="text-blue-600 font-bold">{(trip.total_cost || 0).toLocaleString()}원</span>
                       </div>
                       <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
@@ -280,7 +280,7 @@ export default function SavedTripsPage() {
                             >
                               <Trash2 size={18} />
                             </button>
-                            <div className="bg-gray-50 p-2 rounded-full group-hover:bg-blue-50 transition-colors">
+                            <div className="bg-gray-50 dark:bg-gray-700 p-2 rounded-full group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 transition-colors">
                               <ArrowRight size={18} className="text-gray-400 group-hover:text-blue-600" />
                             </div>
                           </>
@@ -294,12 +294,12 @@ export default function SavedTripsPage() {
           </div>
         ) : (
           // 빈 상태
-          <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-300">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+          <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-300 dark:border-gray-600">
+            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400 dark:text-gray-500">
               <Plane size={32} />
             </div>
-            <h3 className="text-lg font-medium text-gray-900">저장된 여행이 없습니다</h3>
-            <p className="text-gray-500 mt-1 mb-6">새로운 여행 계획을 만들어보세요!</p>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">저장된 여행이 없습니다</h3>
+            <p className="text-gray-500 dark:text-gray-400 mt-1 mb-6">새로운 여행 계획을 만들어보세요!</p>
             <button 
               onClick={() => navigate('/planner')} 
               className="text-blue-600 font-semibold hover:underline"

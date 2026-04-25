@@ -26,17 +26,17 @@ const TripPlanningLoader = ({ percent }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
-        <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">여행 계획을 만들고 있어요</h2>
-        <p className="text-sm text-gray-500 text-center mb-6">AI가 최적의 일정을 분석 중입니다</p>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1 text-center">여행 계획을 만들고 있어요</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-6">AI가 최적의 일정을 분석 중입니다</p>
 
         {/* 전체 진행바 */}
         <div className="mb-6">
-          <div className="flex justify-between text-xs text-gray-500 mb-1">
+          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
             <span>진행률</span>
             <span className="font-bold text-blue-600">{Math.round(percent)}%</span>
           </div>
-          <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-2.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500 ease-out"
               style={{ width: `${percent}%` }}
@@ -55,9 +55,9 @@ const TripPlanningLoader = ({ percent }) => {
               <div
                 key={step.id}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
-                  isDone ? 'bg-green-50' :
-                  isActive ? 'bg-blue-50 shadow-sm' :
-                  'bg-gray-50 opacity-40'
+                  isDone ? 'bg-green-50 dark:bg-green-900/20' :
+                  isActive ? 'bg-blue-50 dark:bg-blue-900/30 shadow-sm' :
+                  'bg-gray-50 dark:bg-gray-700/50 opacity-40'
                 }`}
               >
                 <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
@@ -88,7 +88,7 @@ const TripPlanningLoader = ({ percent }) => {
           })}
         </div>
 
-        <p className="text-xs text-gray-400 text-center mt-5">보통 30~60초 소요됩니다</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-5">보통 30~60초 소요됩니다</p>
       </div>
     </div>
   );
@@ -149,7 +149,7 @@ const LocationSearchInput = ({ label, icon, value, onChange, placeholder }) => {
 
   return (
     <div className="relative">
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{label}</label>
       <div className="flex items-center relative">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{icon}</span>
         <input
@@ -157,16 +157,16 @@ const LocationSearchInput = ({ label, icon, value, onChange, placeholder }) => {
           value={value}
           onChange={handleInputChange}
           placeholder={placeholder}
-          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+          className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
           onFocus={() => value && handleInputChange({ target: { value } })}
           onBlur={() => setTimeout(() => setIsOpen(false), 200)}
         />
       </div>
       {isOpen && suggestions.length > 0 && (
-        <ul className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-xl mt-1 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+        <ul className="absolute z-20 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl mt-1 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
           {suggestions.map((loc) => (
-            <li key={loc.code} onClick={() => handleSelect(loc)} className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 flex justify-between items-center transition-colors">
-              <div><span className="font-medium text-gray-800">{loc.name}</span><span className="text-xs text-gray-500 ml-2">{loc.country}</span></div>
+            <li key={loc.code} onClick={() => handleSelect(loc)} className="px-4 py-3 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex justify-between items-center transition-colors">
+              <div><span className="font-medium text-gray-800 dark:text-white">{loc.name}</span><span className="text-xs text-gray-500 dark:text-gray-400 ml-2">{loc.country}</span></div>
               <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100">{loc.code}</span>
             </li>
           ))}
@@ -178,7 +178,7 @@ const LocationSearchInput = ({ label, icon, value, onChange, placeholder }) => {
 
 const InputGroup = ({ label, icon, children }) => (
   <div>
-    <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{label}</label>
     <div className="flex items-center relative">
       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{icon}</span>
       {children}
@@ -300,12 +300,12 @@ export default function PlannerPage() {
   return (
     <>
     {loading && <TripPlanningLoader percent={progress} />}
-    <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8 font-sans text-gray-900 flex items-center justify-center">
-      <div className="w-full max-w-4xl mx-auto p-8 bg-white rounded-lg shadow-2xl animate-fade-in relative">
-        <button onClick={() => navigate(-1)} className="absolute top-4 left-4 flex items-center gap-1.5 text-gray-400 hover:text-gray-700 text-sm font-medium transition-colors">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 font-sans text-gray-900 dark:text-gray-100 flex items-center justify-center">
+      <div className="w-full max-w-4xl mx-auto p-8 bg-white dark:bg-gray-800 rounded-lg shadow-2xl animate-fade-in relative">
+        <button onClick={() => navigate(-1)} className="absolute top-4 left-4 flex items-center gap-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-sm font-medium transition-colors">
           <ArrowLeft size={16} /> 돌아가기
         </button>
-        <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">어디로 떠나시나요?</h1>
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6 text-center">어디로 떠나시나요?</h1>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -320,7 +320,7 @@ export default function PlannerPage() {
                 value={startDate} 
                 min={getTodayString()} // 과거 날짜 선택 방지
                 onChange={(e) => setStartDate(e.target.value)} 
-                className="w-full py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                className="w-full py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
               />
               <span className="text-gray-500">-</span>
               <input 
@@ -328,17 +328,17 @@ export default function PlannerPage() {
                 value={endDate} 
                 min={startDate} // 시작 날짜보다 이전 날짜 선택 방지
                 onChange={(e) => setEndDate(e.target.value)} 
-                className="w-full py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                className="w-full py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
               />
             </div>
           </InputGroup>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputGroup label="인원" icon={<UsersIcon />}><input type="number" value={partySize} min={1} onChange={(e) => setPartySize(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" /></InputGroup>
-            <InputGroup label="1인 예산 (원)" icon={<WalletIcon />}><input type="number" value={budget} min={0} step={10000} onChange={(e) => setBudget(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" /></InputGroup>
+            <InputGroup label="인원" icon={<UsersIcon />}><input type="number" value={partySize} min={1} onChange={(e) => setPartySize(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" /></InputGroup>
+            <InputGroup label="1인 예산 (원)" icon={<WalletIcon />}><input type="number" value={budget} min={0} step={10000} onChange={(e) => setBudget(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" /></InputGroup>
           </div>
           
-          <InputGroup label="여행 스타일" icon={<EditIcon />}><textarea value={preferredStyleText} onChange={(e) => setPreferredStyleText(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none" placeholder="예: 맛집 위주, 휴양지 선호, 빡빡한 일정..." /></InputGroup>
+          <InputGroup label="여행 스타일" icon={<EditIcon />}><textarea value={preferredStyleText} onChange={(e) => setPreferredStyleText(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 rounded-lg h-24 resize-none focus:ring-2 focus:ring-blue-500 outline-none" placeholder="예: 맛집 위주, 휴양지 선호, 빡빡한 일정..." /></InputGroup>
           
           {error && <div className="text-red-600 text-center bg-red-50 p-2 rounded font-medium">{error}</div>}
 
