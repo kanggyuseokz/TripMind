@@ -162,73 +162,27 @@ export default function ViewTripPage() {
 
         const weatherByDate = mcpData.weather_by_date || {};
 
-        // ✅ travel_style별 동적 활동 비율 계산
-        const getActivityDataByStyle = (travelStyle) => {
-          // 🔄 영어 스타일명을 한국어로 매핑
-          const englishToKorean = {
-            'sightseeing': '관광형',
-            'relaxation': '휴양형',
-            'activity': '액티비티형', 
-            'foodie': '미식형',
-            'shopping': '쇼핑형'
-          };
-          
-          const mappedStyle = englishToKorean[travelStyle] || travelStyle;
-          
-          const styleMap = {
-            '휴양형': [
-              { name: '휴식', value: 60 },
-              { name: '관광', value: 25 },
-              { name: '쇼핑', value: 15 }
-            ],
-            '관광형': [
-              { name: '관광', value: 70 },
-              { name: '휴식', value: 20 },
-              { name: '쇼핑', value: 10 }
-            ],
-            '미식형': [
-              { name: '맛집', value: 50 },
-              { name: '관광', value: 30 },
-              { name: '휴식', value: 20 }
-            ],
-            '쇼핑형': [
-              { name: '쇼핑', value: 50 },
-              { name: '관광', value: 30 },
-              { name: '휴식', value: 20 }
-            ],
-            '액티비티형': [
-              { name: '액티비티', value: 60 },
-              { name: '관광', value: 25 },
-              { name: '휴식', value: 15 }
-            ]
-          };
-
-          return styleMap[mappedStyle] || [
-            { name: '관광', value: 40 },
-            { name: '쇼핑', value: 30 },
-            { name: '휴식', value: 30 }
-          ];
-        };
-
-        // ✅ 사용자의 travel_style 추출
-        const rawTravelStyle = data.travel_style || 
-                             rawData.travel_style || 
+        // ✅ travel_style 추출
+        const rawTravelStyle = data.travel_style ||
+                             rawData.travel_style ||
                              mcpData?.travel_style ||
                              'sightseeing';
-        
         const englishToKorean = {
-          'sightseeing': '관광형',
-          'relaxation': '휴양형',
-          'activity': '액티비티형',
-          'foodie': '미식형', 
-          'shopping': '쇼핑형'
+          'sightseeing': '관광형', 'relaxation': '휴양형',
+          'activity': '액티비티형', 'foodie': '미식형', 'shopping': '쇼핑형'
         };
-        
         const userTravelStyle = englishToKorean[rawTravelStyle] || rawTravelStyle;
-        const dynamicActivityData = getActivityDataByStyle(userTravelStyle);
-        
-        console.log("📊 [VIEW] Raw travel style:", rawTravelStyle);
-        console.log("📊 [VIEW] Mapped travel style:", userTravelStyle);
+
+        // ✅ cost_breakdown_chart: 백엔드 실데이터 우선 사용
+        const CHART_COLORS = ['#4F46E5', '#7C3AED', '#F59E0B', '#10B981'];
+        const rawCostBreakdown = mcpData.cost_breakdown_chart || [];
+        const costBreakdownData = rawCostBreakdown.length > 0
+          ? rawCostBreakdown.map((item, i) => ({
+              name: item.category,
+              value: item.percentage,
+              color: CHART_COLORS[i % CHART_COLORS.length]
+            }))
+          : null;
 
         const tripData = {
           id: data.id,
@@ -240,14 +194,12 @@ export default function ViewTripPage() {
           endDate: data.end_date,
           durationText: durationStr || "기간 미정",
           head_count: partySize,
-          activity_distribution: dynamicActivityData, // ✅ 동적 데이터 사용
+          activity_distribution: costBreakdownData,
           flights: flights,
           hotels: hotels,
           schedule: data.schedule || [],
           weatherByDate: weatherByDate,
-          // ✅ POI 데이터 추가
           poi_list: mcpData.poi_list || [],
-          // ✅ 비용 계산을 위한 데이터 추가  
           travel_style: userTravelStyle,
           selected_flight_cost: data.selected_flight_cost || 0,
           selected_hotel_cost: data.selected_hotel_cost || 0,
@@ -469,22 +421,26 @@ export default function ViewTripPage() {
           <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
             <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
               <span className="w-1 h-6 bg-blue-500 rounded-full"></span>
-              {tripPlan.travel_style} 활동 비율
+              예산 분석
             </h3>
-            <div className="flex flex-col items-center">
-              <DonutChart data={tripPlan.activity_distribution} size={180} strokeWidth={24} />
-              <div className="mt-6 w-full space-y-3">
-                {tripPlan.activity_distribution.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'][idx % 5] }}></span>
-                      <span className="text-gray-600 font-medium">{item.name}</span>
+            {tripPlan.activity_distribution ? (
+              <div className="flex flex-col items-center">
+                <DonutChart data={tripPlan.activity_distribution} size={180} strokeWidth={24} />
+                <div className="mt-6 w-full space-y-3">
+                  {tripPlan.activity_distribution.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color || ['#4F46E5', '#7C3AED', '#F59E0B', '#10B981'][idx % 4] }}></span>
+                        <span className="text-gray-600 dark:text-gray-400 font-medium">{item.name}</span>
+                      </div>
+                      <span className="font-bold text-gray-900 dark:text-white">{item.value}%</span>
                     </div>
-                    <span className="font-bold text-gray-900">{item.value}%</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <p className="text-sm text-gray-400 dark:text-gray-500">예산 분석 데이터가 없습니다.</p>
+            )}
           </div>
           <div className="space-y-4">
             <OverviewCard title="인원" value={`${tripPlan.head_count}명`} icon={<UsersIcon size={20} />} />

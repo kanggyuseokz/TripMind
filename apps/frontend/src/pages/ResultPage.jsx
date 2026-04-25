@@ -120,7 +120,8 @@ useEffect(() => {
         total_cost: tripData.total_cost || tripData.budget,
         pax: tripData.pax || tripData.party_size || 2,
         weatherByDate: mcpData.weather_by_date || {},
-        travel_style: mcpData.travel_style || 'sightseeing'
+        travel_style: mcpData.travel_style || tripData.raw_data?.llm_parsed_request?.travel_style || 'sightseeing',
+        cost_breakdown_chart: tripData.cost_breakdown_chart || mcpData.cost_breakdown_chart || []
     };
 
     setFinalPlan(planData);
@@ -241,94 +242,37 @@ useEffect(() => {
   // 가격 포맷팅
   const formatPrice = (price) => (price ? Number(price).toLocaleString() : '0');
 
-  // ✅ travel_style별 활동 비율 계산
-  const getActivityDataByStyle = (travelStyle) => {
-    // 🔄 영어 스타일명을 한국어로 매핑
-    const englishToKorean = {
-      'sightseeing': '관광형',
-      'relaxation': '휴양형',
-      'activity': '액티비티형', 
-      'foodie': '미식형',
-      'shopping': '쇼핑형'
-    };
-    
-    // 영어 스타일명이 들어오면 한국어로 변환
-    const mappedStyle = englishToKorean[travelStyle] || travelStyle;
-    
-    const styleMap = {
-      '휴양형': [
-        { name: '휴식', value: 60, color: '#EC4899' },
-        { name: '관광', value: 25, color: '#6366F1' },
-        { name: '쇼핑', value: 15, color: '#A855F7' }
-      ],
-      '관광형': [
-        { name: '관광', value: 70, color: '#6366F1' },
-        { name: '휴식', value: 20, color: '#EC4899' },
-        { name: '쇼핑', value: 10, color: '#A855F7' }
-      ],
-      '미식형': [
-        { name: '맛집', value: 50, color: '#F59E0B' },
-        { name: '관광', value: 30, color: '#6366F1' },
-        { name: '휴식', value: 20, color: '#EC4899' }
-      ],
-      '쇼핑형': [
-        { name: '쇼핑', value: 50, color: '#A855F7' },
-        { name: '관광', value: 30, color: '#6366F1' },
-        { name: '휴식', value: 20, color: '#EC4899' }
-      ],
-      '액티비티형': [
-        { name: '액티비티', value: 60, color: '#10B981' },
-        { name: '관광', value: 25, color: '#6366F1' },
-        { name: '휴식', value: 15, color: '#EC4899' }
-      ]
-    };
-
-    // 기본값 (travel_style이 없거나 매칭되지 않는 경우)
-    return styleMap[mappedStyle] || [
-      { name: '관광', value: 40, color: '#6366F1' },
-      { name: '쇼핑', value: 30, color: '#A855F7' },
-      { name: '휴식', value: 30, color: '#EC4899' }
-    ];
-  };
-
   // ✅ 기타 여행비 계산 함수
   const calculateDailyExpenses = (travelStyle, destination) => {
-    // 여행 스타일별 기본 1일 비용 (식비 + 교통비 + 입장료 + 기타)
     const styleExpenses = {
-      '휴양형': 90000,      // 휴양지 - 상대적으로 저렴
-      '관광형': 120000,      // 관광 - 입장료, 교통비 높음
-      '미식형': 140000,     // 미식 - 식비 높음
-      '쇼핑형': 150000,     // 쇼핑 - 쇼핑비 높음
-      '액티비티형': 130000  // 액티비티 - 체험비 높음
+      '휴양형': 90000, '관광형': 120000, '미식형': 140000,
+      '쇼핑형': 150000, '액티비티형': 130000
     };
-    
-    return styleExpenses[travelStyle] || 80000; // 기본값 8만원
+    return styleExpenses[travelStyle] || 80000;
   };
 
   // ✅ 사용자의 travel_style 추출
-  const rawTravelStyle = finalPlan?.travel_style || 
-                        tripData?.travel_style || 
+  const rawTravelStyle = finalPlan?.travel_style ||
+                        tripData?.travel_style ||
                         tripData?.raw_data?.mcp_fetched_data?.travel_style ||
-                        'sightseeing'; // 기본값을 영어로
-  
-  // 영어 → 한국어 매핑
+                        'sightseeing';
+
   const englishToKorean = {
-    'sightseeing': '관광형',
-    'relaxation': '휴양형',
-    'activity': '액티비티형',
-    'foodie': '미식형', 
-    'shopping': '쇼핑형'
+    'sightseeing': '관광형', 'relaxation': '휴양형',
+    'activity': '액티비티형', 'foodie': '미식형', 'shopping': '쇼핑형'
   };
-  
   const userTravelStyle = englishToKorean[rawTravelStyle] || rawTravelStyle;
 
-  // ✅ 동적 활동 비율 데이터
-  const activityData = getActivityDataByStyle(userTravelStyle);
-  
-  // 🔍 디버깅: travel_style 확인
-  console.log("📊 [CHART] Raw travel style:", rawTravelStyle);
-  console.log("📊 [CHART] Mapped travel style:", userTravelStyle);
-  console.log("📊 [CHART] Activity data:", activityData);
+  // ✅ 비용 분석 차트 데이터: 백엔드 실데이터 우선, 없으면 미표시
+  const CHART_COLORS = ['#4F46E5', '#7C3AED', '#F59E0B', '#10B981'];
+  const rawCostBreakdown = finalPlan?.cost_breakdown_chart || [];
+  const costChartData = rawCostBreakdown.length > 0
+    ? rawCostBreakdown.map((item, i) => ({
+        name: item.category,
+        value: item.percentage,
+        color: CHART_COLORS[i % CHART_COLORS.length]
+      }))
+    : null;
 
   // ------------------------------------------------------------------
   // [렌더링] Step 1: 항공권 선택 화면
@@ -492,49 +436,53 @@ useEffect(() => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 왼쪽 사이드바 */}
           <div className="lg:col-span-1 space-y-6">
-            {/* 활동 비율 카드 */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white dark:text-white dark:text-white mb-6">
-                {userTravelStyle} 활동 비율
-              </h2>
-              
-              <div className="relative mb-6">
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={activityData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={90}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {activityData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <div className="text-3xl font-bold text-gray-900 dark:text-white dark:text-white">{activityData[0]?.value}%</div>
-                  <div className="text-sm text-gray-500">{activityData[0]?.name}</div>
+            {/* 예산 분석 카드 */}
+            {costChartData ? (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6">
+                  예산 분석
+                </h2>
+                <div className="relative mb-6">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={costChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={90}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {costChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{costChartData[0]?.value}%</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{costChartData[0]?.name}</div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {costChartData.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{item.name}</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white">{item.value}%</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              <div className="space-y-3">
-                {activityData.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span className="text-sm text-gray-700">{item.name}</span>
-                    </div>
-                    <span className="text-sm font-bold text-gray-900 dark:text-white">{item.value}%</span>
-                  </div>
-                ))}
+            ) : (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">예산 분석</h2>
+                <p className="text-sm text-gray-400 dark:text-gray-500">항공권과 숙소를 선택하면<br/>예산 분석이 표시됩니다.</p>
               </div>
-            </div>
+            )}
 
             {/* 인원 카드 */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">

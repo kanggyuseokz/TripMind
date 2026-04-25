@@ -102,7 +102,7 @@ class TripService:
                 "schedule": final_schedule,
                 
                 # 🎯 [핵심] raw_data 안에 mcp_fetched_data 구조로 전달
-                "raw_data": { 
+                "raw_data": {
                     "llm_parsed_request": parsed_data,
                     "mcp_fetched_data": {
                         "flight_candidates": mcp_data.get('flight_candidates', []),
@@ -111,7 +111,9 @@ class TripService:
                         "hotel_quote": mcp_data.get('hotel_quote'),
                         "poi_list": mcp_data.get('poi_list', []),
                         "weather_info": mcp_data.get('weather_info', {}),
-                        "schedule": final_schedule
+                        "schedule": final_schedule,
+                        "cost_breakdown_chart": cost_breakdown_chart,
+                        "travel_style": mcp_data.get('travel_style', 'sightseeing')
                     }
                 }
             }
