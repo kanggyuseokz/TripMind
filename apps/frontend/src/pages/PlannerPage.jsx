@@ -237,7 +237,15 @@ export default function PlannerPage() {
     let stepIdx = 0;
     const TICK = 200;
     const tick = () => {
-      if (stepIdx >= steps.length) return;
+      if (stepIdx >= steps.length) {
+        // 92% 이후: 99%까지 매우 천천히 크리핑 (3초마다 0.5%)
+        if (current < 99) {
+          current = Math.min(current + 0.5 * (TICK / 3000), 99);
+          setProgress(Math.round(current * 10) / 10);
+        }
+        progressTimer.current = setTimeout(tick, TICK);
+        return;
+      }
       const { target, duration } = steps[stepIdx];
       const increment = (target - (stepIdx === 0 ? 0 : steps[stepIdx - 1].target)) / (duration / TICK);
       current = Math.min(current + increment, target);
@@ -280,11 +288,17 @@ export default function PlannerPage() {
     };
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3분 타임아웃
+
       const response = await fetch(`${API_BASE_URL}/plan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
+
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || '여행 계획 생성 중 오류가 발생했습니다.');
 
@@ -295,7 +309,10 @@ export default function PlannerPage() {
       console.error(err);
       stopProgressSimulation();
       setProgress(0);
-      setError(err.message);
+      const msg = err.name === 'AbortError'
+        ? '요청 시간이 초과되었습니다. 다시 시도해주세요.'
+        : err.message;
+      setError(msg);
       setLoading(false);
     }
   };

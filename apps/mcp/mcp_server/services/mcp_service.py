@@ -293,21 +293,23 @@ class MCPService:
 ]
 """
         
-        # 5. LLM 호출
+        # 5. LLM 호출 (동기 함수이므로 결과 반환)
         try:
-            response = self.llm_model.generate_content(prompt)
+            response = self.llm_model.generate_content(
+                prompt,
+                generation_config={"response_mime_type": "application/json"}
+            )
             result_text = response.text.strip()
-            
+
             # JSON 추출
             result_text = result_text.replace("```json", "").replace("```", "").strip()
             schedule = json.loads(result_text)
-            
+
             print(f"[MCP] ✅ Generated {len(schedule)} days schedule with {travel_style} style")
             return schedule
-            
+
         except Exception as e:
             print(f"[MCP] ⚠️ LLM schedule generation failed: {e}")
-            # Fallback: 기본 일정 생성
             return self._generate_default_schedule(start_date, end_date)
 
     def _adjust_first_day_schedule(self, schedule: List[Any], arrival_time_str: str) -> List[Any]:
@@ -538,15 +540,18 @@ class MCPService:
                     if 'lng' in np: np['longitude'] = np['lng']
                     norm_pois.append(np)
             
-            # ✅ 스타일 기반 일정 생성 (한국어 매핑 포함)
-            raw_schedule = self._generate_schedule_with_style(
-                destination=dest,
-                start_date=s_date,
-                end_date=e_date,
-                travel_style=travel_style,
-                interests=interests,
-                poi_list=norm_pois
-            )
+            # ✅ 스타일 기반 일정 생성 — 동기 LLM 호출을 thread pool에서 실행 (이벤트 루프 블로킹 방지)
+            try:
+                raw_schedule = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        self._generate_schedule_with_style,
+                        dest, s_date, e_date, travel_style, interests, norm_pois
+                    ),
+                    timeout=90.0  # Gemini 90초 타임아웃
+                )
+            except asyncio.TimeoutError:
+                print("[MCP] ⚠️ Schedule generation timed out, using default schedule")
+                raw_schedule = self._generate_default_schedule(s_date, e_date)
             
             # ✅ 날씨를 날짜별로 매핑
             weather_by_date = {}
