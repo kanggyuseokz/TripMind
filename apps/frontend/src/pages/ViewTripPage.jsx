@@ -573,16 +573,24 @@ export default function ViewTripPage() {
                                  <Clock size={18} className="text-gray-400" />}
                               </span>
                               <div className="flex-1">
-                                <p className="font-bold text-gray-800 dark:text-gray-200 text-sm mb-0.5">{event.time_slot}</p>
-                                <p className="text-gray-900 dark:text-gray-300 font-medium text-sm leading-relaxed">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <span className="font-bold text-blue-600 dark:text-blue-400 text-sm">{event.time_slot}</span>
+                                  {(event.place_name || event.poi_name) && (
+                                    <span className="text-xs text-gray-400 dark:text-gray-500">·</span>
+                                  )}
+                                  {(event.place_name || event.poi_name) && (
+                                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-300 truncate">{event.place_name || event.poi_name}</span>
+                                  )}
+                                  {event.poi_rating && event.poi_rating > 0 && (
+                                    <span className="ml-auto flex items-center gap-0.5 text-xs text-yellow-500 shrink-0">
+                                      <Star size={11} fill="currentColor" />
+                                      {event.poi_rating}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
                                   {event.description}
                                 </p>
-                                {event.poi_rating && event.poi_rating > 0 && (
-                                  <div className="flex items-center gap-1 mt-1 text-xs text-yellow-600">
-                                    <Star size={12} fill="currentColor" />
-                                    <span>{event.poi_rating}</span>
-                                  </div>
-                                )}
                                 {event.user_note && (
                                   <p className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded mt-1">
                                     📝 {event.user_note}

@@ -725,15 +725,22 @@ useEffect(() => {
                                     </div>
 
                                     <div className="flex-1 min-w-0">
-                                      <div className="font-bold text-gray-700 dark:text-gray-300 text-sm mb-1">{event.time_slot}</div>
-                                      <div className="font-bold text-gray-900 dark:text-white">{event.place_name || event.poi_name || event.description}</div>
-                                      {(event.place_name || event.poi_name) && <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">{event.description}</div>}
-                                      {event.poi_rating && (
-                                        <div className="flex items-center gap-1 mt-1 text-xs text-yellow-600">
-                                          <Star size={12} fill="currentColor" />
-                                          <span className="font-medium">{event.poi_rating}</span>
-                                        </div>
-                                      )}
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="font-bold text-blue-600 dark:text-blue-400 text-sm">{event.time_slot}</span>
+                                        {(event.place_name || event.poi_name) && (
+                                          <span className="text-xs text-gray-400 dark:text-gray-500">·</span>
+                                        )}
+                                        {(event.place_name || event.poi_name) && (
+                                          <span className="text-sm font-semibold text-gray-600 dark:text-gray-300 truncate">{event.place_name || event.poi_name}</span>
+                                        )}
+                                        {event.poi_rating && (
+                                          <span className="ml-auto flex items-center gap-0.5 text-xs text-yellow-500 shrink-0">
+                                            <Star size={11} fill="currentColor" />
+                                            {event.poi_rating}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-sm text-gray-700 dark:text-gray-300">{event.description}</div>
                                     </div>
                                   </div>
                                 </div>

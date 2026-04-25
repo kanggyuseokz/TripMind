@@ -63,7 +63,7 @@ class MCPService:
         while current_date <= end_date:
             day_schedule = {
                 "day": day_num,
-                "date": f"Day {day_num}",
+                "date": f"{day_num}일차",
                 "full_date": current_date.isoformat(),
                 "events": [
                     {"time_slot": "09:00", "description": "호텔 출발 및 관광 시작", "icon": "car"},
@@ -221,47 +221,48 @@ class MCPService:
         )
         
         prompt = f"""
-You are a professional travel planner. Create a detailed day-by-day itinerary.
+당신은 전문 여행 플래너입니다. 상세한 날짜별 여행 일정을 한국어로 작성해주세요.
 
-# Travel Information
-- Destination: {destination}
-- Dates: {start_date.isoformat()} to {end_date.isoformat()}
-- Duration: {(end_date - start_date).days + 1} days
-- Travel Style: {travel_style}
-- Interests: {', '.join(interests)}
+# 여행 정보
+- 여행지: {destination}
+- 날짜: {start_date.isoformat()} ~ {end_date.isoformat()}
+- 기간: {(end_date - start_date).days + 1}일
+- 여행 스타일: {travel_style}
+- 관심사: {', '.join(interests)}
 
-# Style Guide
+# 스타일 가이드
 {style_guide}
 
-# Available POIs (Rating 4.0+)
-## Restaurants (Rating 4.3+)
+# 이용 가능한 장소 (평점 4.0+)
+## 음식점 (평점 4.3+)
 {restaurants_json}
 
-## Cafes (Rating 4.2+)
+## 카페 (평점 4.2+)
 {cafes_json}
 
-## Attractions (Rating 4.0+)
+## 관광명소 (평점 4.0+)
 {attractions_json}
 
-# Instructions
-1. Follow the style guide strictly
-2. Use high-rated POIs (4.3+ for restaurants, 4.0+ for attractions)
-3. Include cafes as separate activities
-4. Keep meal times realistic (1-1.5 hours)
-5. Add walking/digestion time between meals
+# 작성 규칙
+1. 스타일 가이드를 엄격히 따를 것
+2. 위의 POI 목록에 있는 실제 장소명을 poi_name에 그대로 사용할 것
+3. description은 반드시 한국어로 작성할 것 (예: "아사쿠사 신사 방문 및 전통 거리 구경")
+4. 식사 시간은 현실적으로 (점심 12:00~13:30, 저녁 18:00~19:30)
+5. 이동 시간 및 휴식 시간 포함
+6. 하루에 무리하지 않는 일정으로 구성
 
-Return ONLY valid JSON array:
+반드시 아래 형식의 JSON 배열만 반환하세요 (코드블록 없이):
 [
   {{
     "day": 1,
-    "date": "Day 1",
+    "date": "1일차",
     "full_date": "{start_date.isoformat()}",
     "events": [
       {{
         "time_slot": "09:00",
-        "description": "[POI Name] Activity description (Rating: 4.5)",
+        "description": "한국어로 작성한 활동 설명",
         "icon": "utensils",
-        "poi_name": "POI Name",
+        "poi_name": "장소 이름 (POI 목록에서 가져올 것)",
         "poi_rating": 4.5
       }}
     ]
