@@ -38,10 +38,19 @@ def plan_trip():
 
         valid_styles = ['relaxation', 'sightseeing', 'foodie', 'activity', 'shopping']
 
+        # 국내 여행 판별 (목적지 이름 기반)
+        DOMESTIC_KEYWORDS = [
+            '서울', '부산', '제주', '인천', '대구', '광주', '대전', '울산', '수원',
+            '강릉', '경주', '전주', '여수', '순천', '춘천', '속초', '포항', '거제',
+            '통영', '남해', '가평', '양평', '홍천', '고성', '설악', '한라', '백두',
+            'seoul', 'busan', 'jeju', 'incheon', 'daegu', 'gwangju', 'daejeon'
+        ]
+        is_domestic = any(kw in destination.lower() for kw in DOMESTIC_KEYWORDS)
+        print(f"[TripRoute] 🗺️ is_domestic: {is_domestic} (destination: '{destination}')")
+
         # ✅ 명시적 travel_style이 있으면 LLM 파싱 스킵
         if explicit_travel_style and explicit_travel_style in valid_styles:
             print(f"[TripRoute] ✅ 명시적 travel_style 사용: '{explicit_travel_style}' (LLM 파싱 스킵)")
-            # interests: primary + secondary styles를 모두 포함
             all_styles = [explicit_travel_style] + [s for s in secondary_styles if s in valid_styles]
             parsed_data = {
                 'origin': origin,
@@ -50,7 +59,7 @@ def plan_trip():
                 'end_date': end_date,
                 'party_size': int(party_size),
                 'budget_per_person': {'amount': int(budget), 'currency': 'KRW'},
-                'is_domestic': False,
+                'is_domestic': is_domestic,
                 'travel_style': explicit_travel_style,
                 'interests': all_styles,
                 'preferred_style_text': preferred_style_text,
@@ -71,6 +80,7 @@ def plan_trip():
             parsed_data['end_date'] = end_date
             parsed_data['party_size'] = int(party_size)
             parsed_data['budget_per_person'] = {'amount': int(budget), 'currency': 'KRW'}
+            parsed_data['is_domestic'] = is_domestic  # 키워드 판별값으로 덮어쓰기
             if origin and '(' in origin:
                 parsed_data['origin'] = origin
 
