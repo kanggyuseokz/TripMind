@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
-import Header from './Header'; // 💡 분리한 헤더 컴포넌트 import
+import Header from './Header';
+import { useToast } from './Toast';
 
 // 💡 백엔드 API 주소
 const API_BASE_URL = "http://127.0.0.1:8080/api/trip";
@@ -11,6 +12,7 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   
+  const toast = useToast();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -27,15 +29,15 @@ export default function Layout() {
   const handleSaveTrip = async () => {
     const token = localStorage.getItem('token');
     if (!token) {
-      alert("로그인이 필요한 서비스입니다.");
+      toast('로그인이 필요한 서비스입니다.', 'info');
       navigate('/login');
       return;
     }
 
     const tripData = window.currentTripData || location.state?.tripData;
-    
+
     if (!tripData) {
-      alert("저장할 여행 데이터가 없습니다.");
+      toast('저장할 여행 데이터가 없습니다.', 'error');
       return;
     }
 
@@ -72,12 +74,12 @@ export default function Layout() {
           throw new Error(errData.error || "저장에 실패했습니다.");
       }
 
-      alert("여행이 성공적으로 보관함에 저장되었습니다! 🎉");
+      toast('여행이 보관함에 저장되었습니다!', 'success');
       navigate('/saved');
 
     } catch (error) {
       console.error(error);
-      alert(`오류 발생: ${error.message}`);
+      toast(error.message || '저장 중 오류가 발생했습니다.', 'error');
       if (error.message.includes("로그인")) {
           navigate('/login');
       }

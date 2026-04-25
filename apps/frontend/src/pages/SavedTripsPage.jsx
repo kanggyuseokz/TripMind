@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plane, Calendar, MapPin, ArrowRight, Trash2, Loader2 } from 'lucide-react';
+import { useToast } from '../components/Toast';
 
 const API_BASE_URL = "http://127.0.0.1:8080/api/trip";
 
@@ -75,9 +76,11 @@ const formatTripDates = (startDate, endDate) => {
 
 export default function SavedTripsPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [savedTrips, setSavedTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   useEffect(() => {
     fetchTrips();
@@ -88,7 +91,6 @@ export default function SavedTripsPage() {
     const token = localStorage.getItem('token');
     
     if (!token) {
-      alert("로그인이 필요합니다.");
       navigate('/login');
       return;
     }
@@ -109,7 +111,6 @@ export default function SavedTripsPage() {
       if (response.status === 401 || response.status === 422) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        alert("로그인 세션이 만료되었습니다. 다시 로그인해주세요.");
         navigate('/login');
         return;
       }
@@ -129,18 +130,14 @@ export default function SavedTripsPage() {
     }
   };
 
-  // ✅ 여행 삭제 (에러 핸들링 개선)
   const handleDelete = async (e, tripId) => {
-    e.stopPropagation(); 
-    
-    if (!window.confirm("정말로 이 여행 계획을 삭제하시겠습니까?")) return;
-
+    e.stopPropagation();
     const token = localStorage.getItem('token');
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/saved/${tripId}`, {
         method: 'DELETE',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
@@ -148,21 +145,21 @@ export default function SavedTripsPage() {
 
       if (response.status === 401) {
         localStorage.removeItem('token');
-        alert("로그인 세션이 만료되었습니다.");
         navigate('/login');
         return;
       }
 
       if (response.ok) {
         setSavedTrips(prev => prev.filter(trip => trip.id !== tripId));
-        alert("여행 계획이 삭제되었습니다.");
+        setConfirmDeleteId(null);
+        toast('여행 계획이 삭제되었습니다.', 'success');
       } else {
         const errorData = await response.json().catch(() => ({}));
-        alert(errorData.message || "삭제에 실패했습니다.");
+        toast(errorData.message || '삭제에 실패했습니다.', 'error');
       }
     } catch (err) {
       console.error('❌ 삭제 실패:', err);
-      alert("오류가 발생했습니다. 다시 시도해주세요.");
+      toast('오류가 발생했습니다. 다시 시도해주세요.', 'error');
     }
   };
 
@@ -257,17 +254,37 @@ export default function SavedTripsPage() {
                       <div className="text-sm font-medium text-gray-900">
                         총 비용 <span className="text-blue-600 font-bold">{(trip.total_cost || 0).toLocaleString()}원</span>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <button 
-                          onClick={(e) => handleDelete(e, trip.id)} 
-                          className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                          title="삭제"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                        <div className="bg-gray-50 p-2 rounded-full group-hover:bg-blue-50 transition-colors">
-                          <ArrowRight size={18} className="text-gray-400 group-hover:text-blue-600" />
-                        </div>
+                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                        {confirmDeleteId === trip.id ? (
+                          <>
+                            <span className="text-xs text-red-600 font-medium">삭제할까요?</span>
+                            <button
+                              onClick={(e) => handleDelete(e, trip.id)}
+                              className="bg-red-500 text-white px-2.5 py-1 rounded-lg text-xs font-bold hover:bg-red-600 transition-colors"
+                            >
+                              삭제
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="bg-gray-200 text-gray-600 px-2.5 py-1 rounded-lg text-xs font-bold hover:bg-gray-300 transition-colors"
+                            >
+                              취소
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => setConfirmDeleteId(trip.id)}
+                              className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                              title="삭제"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                            <div className="bg-gray-50 p-2 rounded-full group-hover:bg-blue-50 transition-colors">
+                              <ArrowRight size={18} className="text-gray-400 group-hover:text-blue-600" />
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

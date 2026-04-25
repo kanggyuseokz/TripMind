@@ -1,6 +1,6 @@
 // apps/frontend/src/components/Header.jsx
 import React from 'react';
-import { Plane, ShoppingBag, Menu, User, Loader2 } from 'lucide-react';
+import { Plane, BookmarkPlus, Menu, User, Loader2 } from 'lucide-react';
 
 export default function Header({ 
   isLoginPage, 
@@ -37,7 +37,7 @@ export default function Header({
             className="group flex items-center p-2 text-gray-500 hover:text-white hover:bg-black rounded-full transition-all duration-300 ease-in-out mr-2" 
             title="저장"
           >
-            {isSaving ? <Loader2 size={20} className="animate-spin" /> : <ShoppingBag size={20} />}
+            {isSaving ? <Loader2 size={20} className="animate-spin" /> : <BookmarkPlus size={20} />}
             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-medium">
               {isSaving ? '저장 중...' : '저장하기'}
             </span>

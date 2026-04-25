@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ToastProvider } from './components/Toast';
 
 import Layout from './components/Layout';
 import LandingPage from './pages/LandingPage';
@@ -14,6 +15,7 @@ import ViewTripPage from './pages/ViewTripPage';
 
 export default function App() {
   return (
+    <ToastProvider>
     <Router>
       <Routes>
         <Route element={<Layout />}>
@@ -31,5 +33,6 @@ export default function App() {
         </Route>
       </Routes>
     </Router>
+    </ToastProvider>
   );
 }

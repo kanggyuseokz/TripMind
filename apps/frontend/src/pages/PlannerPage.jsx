@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Loader2, MapPin, Calendar, Users, Wand, Wallet, Edit, Plane
+  Loader2, MapPin, Calendar, Users, Wand, Wallet, Edit, Plane, ArrowLeft
 } from 'lucide-react';
 
 // --- 아이콘 컴포넌트 ---
@@ -183,7 +183,9 @@ export default function PlannerPage() {
   return (
     <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8 font-sans text-gray-900 flex items-center justify-center">
       <div className="w-full max-w-4xl mx-auto p-8 bg-white rounded-lg shadow-2xl animate-fade-in relative">
-        <button onClick={() => navigate('/')} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-sm">✕ 닫기</button>
+        <button onClick={() => navigate(-1)} className="absolute top-4 left-4 flex items-center gap-1.5 text-gray-400 hover:text-gray-700 text-sm font-medium transition-colors">
+          <ArrowLeft size={16} /> 돌아가기
+        </button>
         <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">어디로 떠나시나요?</h1>
         
         <form onSubmit={handleSubmit} className="space-y-6">

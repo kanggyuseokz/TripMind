@@ -1,7 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plane, Calendar, Users, Wallet, MapPin, ShoppingBag, Coffee, Car, Utensils, Home, Loader2, Star, BedDouble, ArrowRight, Trash2, Edit, Clock } from 'lucide-react';
-import ScheduleEditor from '../components/ScheduleEditor'; // ✅ 추가
+import ScheduleEditor from '../components/ScheduleEditor';
+import { useToast } from '../components/Toast';
+
+const getBannerImage = (destination) => {
+  if (!destination) return 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=1920&q=80';
+  const keyword = destination.split('/')[0].split('(')[0].trim();
+  const images = {
+    '오사카': 'https://images.unsplash.com/photo-1590559399607-57523cd47a61?w=1920&q=80',
+    '도쿄': 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1920&q=80',
+    '다낭': 'https://images.unsplash.com/photo-1559592413-7cec430aaec3?w=1920&q=80',
+    '제주': 'https://images.unsplash.com/photo-1548115184-bc6544d06a58?w=1920&q=80',
+    '파리': 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1920&q=80',
+    '뉴욕': 'https://images.unsplash.com/photo-1496442226666-8d4a0e2907eb?w=1920&q=80',
+    '방콕': 'https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=1920&q=80',
+    '런던': 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80',
+    '후쿠오카': 'https://images.unsplash.com/photo-1624329243765-b1e102293478?w=1920&q=80',
+    '삿포로': 'https://images.unsplash.com/photo-1579401772658-2029589d980f?w=1920&q=80',
+    '서울': 'https://images.unsplash.com/photo-1517154421773-0529f29ea451?w=1920&q=80',
+  };
+  const key = Object.keys(images).find(k => keyword.includes(k));
+  return key ? images[key] : 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=1920&q=80';
+};
 
 // 기존 코드 그대로...
 const CalendarIcon = () => <Calendar size={20} />;
@@ -61,7 +82,7 @@ const DonutChart = ({ data, size = 160, strokeWidth = 20 }) => {
           return <circle key={index} cx={size / 2} cy={size / 2} r={radius} fill="transparent" stroke={colors[index % colors.length]} strokeWidth={strokeWidth} strokeDasharray={strokeDasharray} strokeDashoffset={strokeDashoffset} strokeLinecap="round" className="transition-all duration-1000 ease-out"/>;
         })}
       </svg>
-      <div className="absolute text-center"><p className="text-2xl font-bold text-gray-800">100%</p><p className="text-xs font-medium text-gray-400">완료</p></div>
+      <div className="absolute text-center"><p className="text-2xl font-bold text-gray-800">{data[0]?.value}%</p><p className="text-xs font-medium text-gray-400">{data[0]?.name}</p></div>
     </div>
   );
 };
@@ -69,11 +90,13 @@ const DonutChart = ({ data, size = 160, strokeWidth = 20 }) => {
 export default function ViewTripPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [tripPlan, setTripPlan] = useState(null);
   const [activeTab, setActiveTab] = useState('schedule');
   const [loading, setLoading] = useState(true);
-  
-  // ✅ 편집 모드 상태 추가
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [pendingCancelEdit, setPendingCancelEdit] = useState(false);
+
   const [isEditing, setIsEditing] = useState(false);
   const [originalSchedule, setOriginalSchedule] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -84,8 +107,6 @@ export default function ViewTripPage() {
         const token = localStorage.getItem('token');
         
         if (!token) {
-          console.error('No access token found');
-          alert('로그인이 필요합니다.');
           navigate('/login');
           return;
         }
@@ -211,6 +232,7 @@ export default function ViewTripPage() {
 
         const tripData = {
           id: data.id,
+          destination: data.destination || '',
           trip_summary: data.trip_summary || `${data.destination} 여행`,
           total_cost: totalCost,
           per_person_budget: budget,
@@ -244,7 +266,7 @@ export default function ViewTripPage() {
 
       } catch (error) {
         console.error('Error fetching trip:', error);
-        alert('여행 정보를 불러오는데 실패했습니다.');
+        toast('여행 정보를 불러오는데 실패했습니다.', 'error');
         navigate('/saved');
       }
     };
@@ -252,34 +274,25 @@ export default function ViewTripPage() {
     fetchTrip();
   }, [id, navigate]);
 
-  // ✅ 편집 모드 토글
   const toggleEditMode = () => {
     if (isEditing) {
-      // 편집 종료 - 변경사항 확인
       if (JSON.stringify(tripPlan.schedule) !== JSON.stringify(originalSchedule)) {
-        const shouldSave = window.confirm(
-          '변경사항이 있습니다. 저장하시겠습니까?\n' +
-          '"확인" = 저장 후 종료\n' +
-          '"취소" = 변경사항 버리고 종료'
-        );
-        
-        if (shouldSave) {
-          handleSaveSchedule();
-          return;
-        } else {
-          // 원본으로 복원
-          setTripPlan(prev => ({
-            ...prev,
-            schedule: JSON.parse(JSON.stringify(originalSchedule))
-          }));
-        }
+        setPendingCancelEdit(true);
+        return;
       }
     } else {
-      // 편집 시작 - 현재 상태 백업
       setOriginalSchedule(JSON.parse(JSON.stringify(tripPlan.schedule)));
     }
-    
     setIsEditing(!isEditing);
+  };
+
+  const confirmCancelEdit = () => {
+    setTripPlan(prev => ({
+      ...prev,
+      schedule: JSON.parse(JSON.stringify(originalSchedule))
+    }));
+    setIsEditing(false);
+    setPendingCancelEdit(false);
   };
 
   // ✅ 스케줄 변경 핸들러
@@ -315,37 +328,33 @@ export default function ViewTripPage() {
       // 성공 - 원본 스케줄 업데이트
       setOriginalSchedule(JSON.parse(JSON.stringify(tripPlan.schedule)));
       setIsEditing(false);
-      
-      alert('✅ 일정이 성공적으로 저장되었습니다!');
-      
+      toast('일정이 성공적으로 저장되었습니다!', 'success');
+
     } catch (err) {
       console.error('Error saving schedule:', err);
-      alert('❌ 일정 저장 중 오류가 발생했습니다: ' + err.message);
+      toast('일정 저장 중 오류가 발생했습니다: ' + err.message, 'error');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('정말로 이 여행을 삭제하시겠습니까?')) return;
-
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`http://127.0.0.1:8080/api/trip/saved/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (!response.ok) throw new Error('Failed to delete trip');
 
-      alert('여행이 삭제되었습니다.');
+      toast('여행이 삭제되었습니다.', 'success');
       navigate('/saved');
     } catch (error) {
       console.error('Error deleting trip:', error);
-      alert('삭제에 실패했습니다.');
+      toast('삭제에 실패했습니다.', 'error');
     }
+    setShowDeleteConfirm(false);
   };
 
   if (loading) {
@@ -367,21 +376,14 @@ export default function ViewTripPage() {
   return (
     <div className="w-full max-w-7xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden animate-fade-in relative pb-12 my-8">
       {/* 상단 배너 */}
-      <div className="relative h-80 bg-cover bg-center group" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=1920&q=80)' }}>
+      <div className="relative h-80 bg-cover bg-center group" style={{ backgroundImage: `url(${getBannerImage(tripPlan.destination || tripPlan.trip_summary)})` }}>
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
-        
+
         <div className="absolute top-4 right-4 flex gap-2">
-          {/* ✅ 편집 모드 버튼들 수정 */}
           {isEditing ? (
             <>
               <button
-                onClick={() => {
-                  setTripPlan(prev => ({
-                    ...prev,
-                    schedule: JSON.parse(JSON.stringify(originalSchedule))
-                  }));
-                  setIsEditing(false);
-                }}
+                onClick={toggleEditMode}
                 className="bg-gray-500/90 backdrop-blur hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg transition-all"
                 disabled={saving}
               >
@@ -392,30 +394,61 @@ export default function ViewTripPage() {
                 className="bg-green-500/90 backdrop-blur hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg transition-all"
                 disabled={saving}
               >
-                {saving ? '저장 중...' : '💾 저장'}
+                {saving ? '저장 중...' : '저장'}
+              </button>
+            </>
+          ) : showDeleteConfirm ? (
+            <>
+              <span className="text-white text-sm font-medium self-center">삭제할까요?</span>
+              <button
+                onClick={handleDelete}
+                className="bg-red-500/90 backdrop-blur hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium text-sm shadow-lg transition-all"
+              >
+                삭제
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="bg-gray-500/90 backdrop-blur hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium text-sm shadow-lg transition-all"
+              >
+                취소
               </button>
             </>
           ) : (
-            <button
-              onClick={toggleEditMode}
-              className="bg-white/90 backdrop-blur hover:bg-white text-gray-800 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg transition-all"
-            >
-              <Edit size={16} /> 수정하기
-            </button>
+            <>
+              <button
+                onClick={toggleEditMode}
+                className="bg-white/90 backdrop-blur hover:bg-white text-gray-800 px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg transition-all"
+              >
+                <Edit size={16} /> 수정하기
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="bg-red-500/90 backdrop-blur hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg transition-all"
+              >
+                <Trash2 size={16} /> 삭제
+              </button>
+            </>
           )}
-          
-          <button
-            onClick={handleDelete}
-            className="bg-red-500/90 backdrop-blur hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg transition-all"
-          >
-            <Trash2 size={16} /> 삭제
-          </button>
         </div>
 
-        {/* ✅ 편집 모드 표시 */}
         {isEditing && (
           <div className="absolute top-4 left-4 bg-yellow-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-            ✏️ 편집 모드
+            편집 모드
+          </div>
+        )}
+
+        {/* 편집 취소 확인 모달 */}
+        {pendingCancelEdit && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
+            <div className="bg-white rounded-xl p-6 shadow-2xl max-w-sm mx-4 text-center">
+              <p className="font-bold text-gray-900 mb-2">변경사항이 있습니다</p>
+              <p className="text-sm text-gray-500 mb-6">저장하지 않고 종료하면 변경사항이 사라집니다.</p>
+              <div className="flex gap-3 justify-center">
+                <button onClick={() => { handleSaveSchedule(); setPendingCancelEdit(false); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700">저장 후 종료</button>
+                <button onClick={confirmCancelEdit} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300">그냥 종료</button>
+                <button onClick={() => setPendingCancelEdit(false)} className="bg-white border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50">계속 편집</button>
+              </div>
+            </div>
           </div>
         )}
 

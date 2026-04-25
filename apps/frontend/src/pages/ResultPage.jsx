@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useToast } from '../components/Toast';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Plane, Calendar, Users, Wallet, MapPin, ShoppingBag, Coffee, Car, Utensils, Home, ArrowRight, Check, Star, ChevronRight, Clock, BedDouble } from 'lucide-react';
 import { adjustScheduleWithFlightTimes } from '../utils/scheduleUtils';
-import ScheduleEditor from '../components/ScheduleEditor';
 
 // [UI 컴포넌트] 진행 단계 표시줄 (Wizard Steps)
 const StepIndicator = ({ currentStep }) => {
@@ -48,6 +48,7 @@ const formatDate = (isoString) => {
 export default function ResultPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const toast = useToast();
   const tripData = location.state?.tripData;
 
   // 상태 관리: 현재 단계, 선택된 항목
@@ -63,22 +64,6 @@ export default function ResultPage() {
   
   // 탭 상태 관리 (ViewTripPage 스타일)
   const [activeTab, setActiveTab] = useState('schedule');
-
-  // [핵심] 데이터 찾기 헬퍼 함수
-  const findDataKey = (obj, keyToFind) => {
-    if (!obj || typeof obj !== 'object') return null;
-    if (Array.isArray(obj)) return null;
-    if (keyToFind in obj && obj[keyToFind]) return obj[keyToFind];
-    
-    const commonWrappers = ['data', 'mcp_fetched_data', 'raw_data', 'result', 'content'];
-    for (const wrapper of commonWrappers) {
-        if (obj[wrapper]) {
-            const found = findDataKey(obj[wrapper], keyToFind);
-            if (found) return found;
-        }
-    }
-    return null;
-  };
 
 useEffect(() => {
     if (!tripData) { 
@@ -134,7 +119,8 @@ useEffect(() => {
         endDate: dates.end,
         total_cost: tripData.total_cost || tripData.budget,
         pax: tripData.pax || tripData.party_size || 2,
-        weatherByDate: mcpData.weather_by_date || {} // ✅ 날씨 추가
+        weatherByDate: mcpData.weather_by_date || {},
+        travel_style: mcpData.travel_style || 'sightseeing'
     };
 
     setFinalPlan(planData);
@@ -532,8 +518,8 @@ useEffect(() => {
                 </ResponsiveContainer>
                 
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <div className="text-4xl font-bold text-gray-900">100%</div>
-                  <div className="text-sm text-gray-500">완료</div>
+                  <div className="text-3xl font-bold text-gray-900">{activityData[0]?.value}%</div>
+                  <div className="text-sm text-gray-500">{activityData[0]?.name}</div>
                 </div>
               </div>
 
@@ -898,7 +884,7 @@ useEffect(() => {
               try {
                 const token = localStorage.getItem('token');
                 if (!token) {
-                  alert('로그인이 필요합니다.');
+                  toast('로그인이 필요합니다.', 'info');
                   navigate('/login');
                   return;
                 }
@@ -906,7 +892,7 @@ useEffect(() => {
                 // ✅ window 객체의 최신 데이터 사용
                 let tripData = window.currentTripData;
                 if (!tripData) {
-                  alert('저장할 여행 데이터가 없습니다.');
+                  toast('저장할 여행 데이터가 없습니다.', 'error');
                   return;
                 }
 
@@ -957,16 +943,16 @@ useEffect(() => {
                 });
 
                 if (response.ok) {
-                  alert('여행 계획이 저장되었습니다! 🎉');
+                  toast('여행 계획이 저장되었습니다!', 'success');
                   navigate('/saved');
                 } else {
                   const errorData = await response.json().catch(() => ({}));
                   console.error('💾 [PAGE SAVE ERROR]:', errorData);
-                  alert('저장에 실패했습니다: ' + (errorData.error || '알 수 없는 오류'));
+                  toast('저장에 실패했습니다: ' + (errorData.error || '알 수 없는 오류'), 'error');
                 }
               } catch (error) {
                 console.error('💾 [PAGE SAVE ERROR]:', error);
-                alert('저장 중 오류가 발생했습니다.');
+                toast('저장 중 오류가 발생했습니다.', 'error');
               }
             }}
             className="bg-gray-900 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-gray-800 transition-all"
