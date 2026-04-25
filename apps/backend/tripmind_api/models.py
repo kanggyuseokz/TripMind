@@ -1,6 +1,7 @@
 # backend/tripmind_api/models.py
+import uuid as _uuid
 from datetime import datetime
-from .extensions import db  # 👈 반드시 extensions에서 가져와야 함!
+from .extensions import db
 from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.sql import func
 
@@ -24,6 +25,7 @@ class Trip(db.Model):
     __tablename__ = "trips"
     
     id = db.Column(db.Integer, primary_key=True)
+    uuid = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(_uuid.uuid4()))
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     
     title = db.Column(db.String(200), nullable=False, default="나만의 여행")
@@ -41,5 +43,6 @@ class Trip(db.Model):
     raw_data_json = db.Column(JSON, nullable=True) 
     
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
-    
+    updated_at = db.Column(db.DateTime(timezone=True), onupdate=func.now(), nullable=True)
+
     user = db.relationship("User", back_populates="trips")

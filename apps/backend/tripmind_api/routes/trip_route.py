@@ -154,7 +154,7 @@ def save_trip():
 
         return jsonify({
             "message": "여행 계획이 저장되었습니다.",
-            "trip_id": new_trip.id
+            "trip_id": new_trip.uuid
         }), 201
 
     except Exception as e:
@@ -174,15 +174,15 @@ def get_saved_trips():
         result = []
         for trip in trips:
             result.append({
-                "id": trip.id,
+                "id": trip.uuid,
                 "trip_summary": trip.trip_summary,
                 "destination": trip.destination,
                 "start_date": trip.start_date.isoformat() if trip.start_date else None,
                 "end_date": trip.end_date.isoformat() if trip.end_date else None,
-                "pax": trip.head_count,  # ← 수정!
-                "party_size": trip.head_count,  # 추가
-                "budget": trip.total_cost,  # ← 수정!
-                "total_cost": trip.total_cost,  # 추가
+                "pax": trip.head_count,
+                "party_size": trip.head_count,
+                "budget": trip.total_cost,
+                "total_cost": trip.total_cost,
                 "schedule": trip.schedule_json,
                 "raw_data": trip.raw_data_json,
                 "created_at": trip.created_at.isoformat()
@@ -194,19 +194,19 @@ def get_saved_trips():
         print(f"[TripRoute] ❌ Error in /saved: {e}")
         return jsonify({"error": str(e)}), 500
 
-@bp.get("/saved/<int:trip_id>")
+@bp.get("/saved/<string:trip_uuid>")
 @jwt_required()
-def get_trip_detail(trip_id):
+def get_trip_detail(trip_uuid):
     """특정 여행 상세 조회"""
     try:
         user_id = get_jwt_identity()
-        trip = Trip.query.filter_by(id=trip_id, user_id=int(user_id)).first()
-        
+        trip = Trip.query.filter_by(uuid=trip_uuid, user_id=int(user_id)).first()
+
         if not trip:
             return jsonify({"error": "Trip not found"}), 404
-        
+
         return jsonify({
-            "id": trip.id,
+            "id": trip.uuid,
             "trip_summary": trip.trip_summary,
             "destination": trip.destination,
             "start_date": trip.start_date.isoformat() if trip.start_date else None,
@@ -221,16 +221,16 @@ def get_trip_detail(trip_id):
         }), 200
 
     except Exception as e:
-        print(f"[TripRoute] ❌ Error in /saved/<id>: {e}")
+        print(f"[TripRoute] ❌ Error in /saved/<uuid>: {e}")
         return jsonify({"error": str(e)}), 500
 
-@bp.delete("/saved/<int:trip_id>")
+@bp.delete("/saved/<string:trip_uuid>")
 @jwt_required()
-def delete_trip(trip_id):
+def delete_trip(trip_uuid):
     """여행 계획 삭제"""
     try:
         user_id = get_jwt_identity()
-        trip = Trip.query.filter_by(id=trip_id, user_id=int(user_id)).first()
+        trip = Trip.query.filter_by(uuid=trip_uuid, user_id=int(user_id)).first()
 
         if not trip:
             return jsonify({"error": "Trip not found"}), 404
@@ -244,16 +244,16 @@ def delete_trip(trip_id):
         db.session.rollback()
         print(f"[TripRoute] ❌ Error in /delete: {e}")
         return jsonify({"error": str(e)}), 500
-    
-@bp.patch("/saved/<int:trip_id>")
+
+@bp.patch("/saved/<string:trip_uuid>")
 @jwt_required()
-def update_trip(trip_id):
+def update_trip(trip_uuid):
     """여행 계획 수정"""
     try:
         user_id = get_jwt_identity()
         data = request.get_json()
-        
-        trip = Trip.query.filter_by(id=trip_id, user_id=int(user_id)).first()
+
+        trip = Trip.query.filter_by(uuid=trip_uuid, user_id=int(user_id)).first()
         
         if not trip:
             return jsonify({"error": "Trip not found"}), 404
