@@ -25,7 +25,7 @@ class Trip(db.Model):
     __tablename__ = "trips"
     
     id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(_uuid.uuid4()))
+    uuid = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(_uuid.uuid4()), server_default=db.text("(UUID())"))
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     
     title = db.Column(db.String(200), nullable=False, default="나만의 여행")
