@@ -172,10 +172,9 @@ JSON 형식:
             
             if not system_prompt:
                 # 폴백: 기본 프롬프트
-                system_prompt = """당신은 여행 스타일 키워드 추출 전문가입니다.
-사용자의 여행 스타일 텍스트가 주어지면, ['관광', '맛집', '쇼핑', '휴양', '액티비티', '문화/예술', '역사', '자연'] 중에서
-가장 관련 있는 키워드를 JSON 리스트 형식으로 반환합니다.
-만약 특별한 키워드가 없으면 ['관광']을 반환합니다."""
+                system_prompt = """당신은 여행 스타일 분류 전문가입니다.
+sightseeing, relaxation, foodie, activity, shopping 중 해당하는 ID를 JSON 리스트로 반환하세요.
+특별한 키워드가 없으면 ["sightseeing"]을 반환합니다."""
             
             # ✅ 전체 프롬프트 생성
             full_prompt = f"""{system_prompt}
