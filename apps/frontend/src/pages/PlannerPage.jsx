@@ -99,46 +99,115 @@ const TripPlanningLoader = ({ percent }) => {
 };
 
 const POPULAR_LOCATIONS = [
-  { code: 'ICN', name: '서울/인천', country: '대한민국' },
-  { code: 'GMP', name: '서울/김포', country: '대한민국' },
-  { code: 'NRT', name: '도쿄/나리타', country: '일본' },
-  { code: 'HND', name: '도쿄/하네다', country: '일본' },
-  { code: 'KIX', name: '오사카/간사이', country: '일본' },
-  { code: 'FUK', name: '후쿠오카', country: '일본' },
-  { code: 'CTS', name: '삿포로/신치토세', country: '일본' },
-  { code: 'OKA', name: '오키나와/나하', country: '일본' },
-  { code: 'CJU', name: '제주', country: '대한민국' },
-  { code: 'PUS', name: '부산/김해', country: '대한민국' },
-  { code: 'DAD', name: '다낭', country: '베트남' },
-  { code: 'BKK', name: '방콕', country: '태국' },
-  { code: 'CDG', name: '파리/샤를드골', country: '프랑스' },
-  { code: 'LHR', name: '런던/히드로', country: '영국' },
-  { code: 'JFK', name: '뉴욕/JFK', country: '미국' },
-  { code: 'LAX', name: '로스앤젤레스', country: '미국' },
+  // 국내
+  { code: 'ICN', name: '서울/인천', country: '대한민국', region: '국내' },
+  { code: 'GMP', name: '서울/김포', country: '대한민국', region: '국내' },
+  { code: 'CJU', name: '제주', country: '대한민국', region: '국내' },
+  { code: 'PUS', name: '부산/김해', country: '대한민국', region: '국내' },
+  { code: 'TAE', name: '대구', country: '대한민국', region: '국내' },
+  { code: 'CJJ', name: '청주', country: '대한민국', region: '국내' },
+  // 일본
+  { code: 'NRT', name: '도쿄/나리타', country: '일본', region: '일본' },
+  { code: 'HND', name: '도쿄/하네다', country: '일본', region: '일본' },
+  { code: 'KIX', name: '오사카/간사이', country: '일본', region: '일본' },
+  { code: 'FUK', name: '후쿠오카', country: '일본', region: '일본' },
+  { code: 'CTS', name: '삿포로/신치토세', country: '일본', region: '일본' },
+  { code: 'OKA', name: '오키나와/나하', country: '일본', region: '일본' },
+  { code: 'NGO', name: '나고야', country: '일본', region: '일본' },
+  { code: 'HIJ', name: '히로시마', country: '일본', region: '일본' },
+  { code: 'KOJ', name: '가고시마', country: '일본', region: '일본' },
+  { code: 'SDJ', name: '센다이', country: '일본', region: '일본' },
+  // 동남아
+  { code: 'BKK', name: '방콕/수완나품', country: '태국', region: '동남아' },
+  { code: 'HKT', name: '푸켓', country: '태국', region: '동남아' },
+  { code: 'CNX', name: '치앙마이', country: '태국', region: '동남아' },
+  { code: 'DAD', name: '다낭', country: '베트남', region: '동남아' },
+  { code: 'HAN', name: '하노이', country: '베트남', region: '동남아' },
+  { code: 'SGN', name: '호치민', country: '베트남', region: '동남아' },
+  { code: 'SIN', name: '싱가포르', country: '싱가포르', region: '동남아' },
+  { code: 'DPS', name: '발리/덴파사르', country: '인도네시아', region: '동남아' },
+  { code: 'MNL', name: '마닐라', country: '필리핀', region: '동남아' },
+  { code: 'CEB', name: '세부', country: '필리핀', region: '동남아' },
+  { code: 'KUL', name: '쿠알라룸푸르', country: '말레이시아', region: '동남아' },
+  { code: 'REP', name: '씨엠립/앙코르', country: '캄보디아', region: '동남아' },
+  // 동북아
+  { code: 'HKG', name: '홍콩', country: '홍콩', region: '동북아' },
+  { code: 'TPE', name: '타이베이/타오위안', country: '대만', region: '동북아' },
+  { code: 'PVG', name: '상하이/푸동', country: '중국', region: '동북아' },
+  { code: 'PEK', name: '베이징', country: '중국', region: '동북아' },
+  { code: 'MFM', name: '마카오', country: '마카오', region: '동북아' },
+  { code: 'CAN', name: '광저우', country: '중국', region: '동북아' },
+  // 유럽
+  { code: 'CDG', name: '파리/샤를드골', country: '프랑스', region: '유럽' },
+  { code: 'LHR', name: '런던/히드로', country: '영국', region: '유럽' },
+  { code: 'AMS', name: '암스테르담', country: '네덜란드', region: '유럽' },
+  { code: 'FRA', name: '프랑크푸르트', country: '독일', region: '유럽' },
+  { code: 'MUC', name: '뮌헨', country: '독일', region: '유럽' },
+  { code: 'BCN', name: '바르셀로나', country: '스페인', region: '유럽' },
+  { code: 'MAD', name: '마드리드', country: '스페인', region: '유럽' },
+  { code: 'FCO', name: '로마/피우미치노', country: '이탈리아', region: '유럽' },
+  { code: 'MXP', name: '밀라노', country: '이탈리아', region: '유럽' },
+  { code: 'VIE', name: '빈', country: '오스트리아', region: '유럽' },
+  { code: 'ZRH', name: '취리히', country: '스위스', region: '유럽' },
+  { code: 'PRG', name: '프라하', country: '체코', region: '유럽' },
+  { code: 'BUD', name: '부다페스트', country: '헝가리', region: '유럽' },
+  { code: 'IST', name: '이스탄불', country: '터키', region: '유럽' },
+  { code: 'ATH', name: '아테네', country: '그리스', region: '유럽' },
+  { code: 'LIS', name: '리스본', country: '포르투갈', region: '유럽' },
+  // 미주
+  { code: 'JFK', name: '뉴욕/JFK', country: '미국', region: '미주' },
+  { code: 'LAX', name: '로스앤젤레스', country: '미국', region: '미주' },
+  { code: 'HNL', name: '호놀룰루/하와이', country: '미국', region: '미주' },
+  { code: 'LAS', name: '라스베이거스', country: '미국', region: '미주' },
+  { code: 'SFO', name: '샌프란시스코', country: '미국', region: '미주' },
+  { code: 'SEA', name: '시애틀', country: '미국', region: '미주' },
+  { code: 'YVR', name: '밴쿠버', country: '캐나다', region: '미주' },
+  { code: 'YYZ', name: '토론토', country: '캐나다', region: '미주' },
+  { code: 'CUN', name: '칸쿤', country: '멕시코', region: '미주' },
+  // 오세아니아
+  { code: 'SYD', name: '시드니', country: '호주', region: '오세아니아' },
+  { code: 'MEL', name: '멜버른', country: '호주', region: '오세아니아' },
+  { code: 'BNE', name: '브리즈번', country: '호주', region: '오세아니아' },
+  { code: 'GUM', name: '괌', country: '괌', region: '오세아니아' },
+  { code: 'SPN', name: '사이판', country: '사이판', region: '오세아니아' },
+  { code: 'AKL', name: '오클랜드', country: '뉴질랜드', region: '오세아니아' },
+  // 중동
+  { code: 'DXB', name: '두바이', country: 'UAE', region: '중동' },
+  { code: 'DOH', name: '도하/하마드', country: '카타르', region: '중동' },
+  { code: 'AUH', name: '아부다비', country: 'UAE', region: '중동' },
 ];
 
+const GROUPED_LOCATIONS = POPULAR_LOCATIONS.reduce((acc, loc) => {
+  if (!acc[loc.region]) acc[loc.region] = [];
+  acc[loc.region].push(loc);
+  return acc;
+}, {});
+
 const LocationSearchInput = ({ label, icon, value, onChange, placeholder }) => {
-  const [suggestions, setSuggestions] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [showGrouped, setShowGrouped] = useState(true);
+
+  const filtered = !showGrouped
+    ? POPULAR_LOCATIONS.filter(loc =>
+        loc.name.includes(value) ||
+        loc.code.includes(value.toUpperCase()) ||
+        loc.country.includes(value)
+      )
+    : [];
 
   const handleInputChange = (e) => {
-    const inputValue = e.target.value;
-    onChange(inputValue);
-    if (inputValue.length > 0) {
-      const filtered = POPULAR_LOCATIONS.filter(loc =>
-        loc.name.includes(inputValue) ||
-        loc.code.includes(inputValue.toUpperCase()) ||
-        loc.country.includes(inputValue)
-      );
-      setSuggestions(filtered);
-      setIsOpen(true);
-    } else {
-      setIsOpen(false);
-    }
+    onChange(e.target.value);
+    setShowGrouped(false);
+    setIsOpen(true);
   };
 
-  const handleSelect = (location) => {
-    onChange(`${location.name} (${location.code})`);
+  const handleFocus = () => {
+    setShowGrouped(true);
+    setIsOpen(true);
+  };
+
+  const handleSelect = (loc) => {
+    onChange(`${loc.name} (${loc.code})`);
     setIsOpen(false);
   };
 
@@ -151,28 +220,53 @@ const LocationSearchInput = ({ label, icon, value, onChange, placeholder }) => {
           type="text"
           value={value}
           onChange={handleInputChange}
+          onFocus={handleFocus}
+          onBlur={() => setTimeout(() => setIsOpen(false), 200)}
           placeholder={placeholder}
           className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-gray-400 dark:placeholder-gray-500"
-          onFocus={() => value && handleInputChange({ target: { value } })}
-          onBlur={() => setTimeout(() => setIsOpen(false), 200)}
         />
       </div>
-      {isOpen && suggestions.length > 0 && (
-        <ul className="absolute z-20 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-xl mt-1 max-h-60 overflow-y-auto">
-          {suggestions.map((loc) => (
-            <li
-              key={loc.code}
-              onClick={() => handleSelect(loc)}
-              className="px-4 py-3 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex justify-between items-center transition-colors"
-            >
-              <div>
-                <span className="font-medium text-gray-800 dark:text-white">{loc.name}</span>
-                <span className="text-xs text-gray-400 ml-2">{loc.country}</span>
+      {isOpen && (
+        <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-xl mt-1 max-h-80 overflow-y-auto">
+          {showGrouped ? (
+            Object.entries(GROUPED_LOCATIONS).map(([region, locs]) => (
+              <div key={region}>
+                <div className="px-4 py-1.5 text-xs font-bold text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700/60 sticky top-0">
+                  {region}
+                </div>
+                {locs.map((loc) => (
+                  <div
+                    key={loc.code}
+                    onClick={() => handleSelect(loc)}
+                    className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer flex justify-between items-center transition-colors"
+                  >
+                    <div>
+                      <span className="text-sm font-medium text-gray-800 dark:text-white">{loc.name}</span>
+                      <span className="text-xs text-gray-400 ml-2">{loc.country}</span>
+                    </div>
+                    <span className="text-xs font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-md">{loc.code}</span>
+                  </div>
+                ))}
               </div>
-              <span className="text-xs font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-lg">{loc.code}</span>
-            </li>
-          ))}
-        </ul>
+            ))
+          ) : filtered.length > 0 ? (
+            filtered.map((loc) => (
+              <div
+                key={loc.code}
+                onClick={() => handleSelect(loc)}
+                className="px-4 py-3 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex justify-between items-center transition-colors"
+              >
+                <div>
+                  <span className="font-medium text-gray-800 dark:text-white">{loc.name}</span>
+                  <span className="text-xs text-gray-400 ml-2">{loc.country}</span>
+                </div>
+                <span className="text-xs font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-lg">{loc.code}</span>
+              </div>
+            ))
+          ) : (
+            <div className="px-4 py-6 text-center text-sm text-gray-400 dark:text-gray-500">검색 결과가 없습니다</div>
+          )}
+        </div>
       )}
     </div>
   );
