@@ -23,7 +23,7 @@ const SocialButton = ({ icon, text, bgColor, textColor, onClick }) => (
   </button>
 );
 
-const API_BASE_URL = "http://127.0.0.1:8080/api/auth";
+import { authAPI } from '../lib/api';
 
 const LoginForm = ({ setPage }) => {
   const navigate = useNavigate();
@@ -39,17 +39,7 @@ const LoginForm = ({ setPage }) => {
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || '로그인 실패');
-      }
+      const data = await authAPI.login(email, password);
 
       if (data.access_token) {
         localStorage.setItem('token', data.access_token);
@@ -142,18 +132,7 @@ const RegisterForm = ({ setPage }) => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email, password })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || '회원가입 실패');
-      }
-
+      await authAPI.register({ username, email, password });
       toast('회원가입 성공! 로그인해주세요.', 'success');
       setPage('login');
     } catch (err) {

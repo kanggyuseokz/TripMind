@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Lock, Mail, Save, Loader2, CheckCircle, Camera } from 'lucide-react';
 
-const API_BASE_URL = "http://127.0.0.1:8080/api/auth";
+import { authAPI } from '../lib/api';
 
 export default function EditProfilePage() {
   const navigate = useNavigate();
@@ -38,27 +38,7 @@ export default function EditProfilePage() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/profile`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        alert("로그인 세션이 만료되었습니다.");
-        navigate('/login');
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('프로필을 불러오지 못했습니다.');
-      }
-
-      const data = await response.json();
+      const data = await authAPI.getProfile(token);
       
       setFormData({
         username: data.username || "",
@@ -120,29 +100,9 @@ export default function EditProfilePage() {
     setError("");
 
     try {
-      const formData = new FormData();
-      formData.append('profile_image', file);
-
-      const response = await fetch(`${API_BASE_URL}/profile/image`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      const data = await response.json();
-
-      if (response.status === 401) {
-        localStorage.removeItem('token');
-        alert("로그인 세션이 만료되었습니다.");
-        navigate('/login');
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error(data.error || "이미지 업로드 실패");
-      }
+      const fd = new FormData();
+      fd.append('profile_image', file);
+      const data = await authAPI.updateProfileImage(token, fd);
 
       // 성공
       setSuccess("프로필 사진이 변경되었습니다.");
@@ -194,32 +154,11 @@ export default function EditProfilePage() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/profile`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          username: formData.username,
-          current_password: formData.currentPassword || null,
-          new_password: formData.newPassword || null
-        })
+      const data = await authAPI.updateProfile(token, {
+        username: formData.username,
+        current_password: formData.currentPassword || null,
+        new_password: formData.newPassword || null,
       });
-
-      const data = await response.json();
-
-      if (response.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        alert("로그인 세션이 만료되었습니다.");
-        navigate('/login');
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error(data.error || "프로필 수정에 실패했습니다.");
-      }
 
       if (data.user) {
         localStorage.setItem('user', JSON.stringify(data.user));

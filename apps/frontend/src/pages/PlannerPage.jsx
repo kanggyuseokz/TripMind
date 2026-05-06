@@ -6,6 +6,7 @@ import {
   BedDouble, CheckCircle2, Clock, Sparkles, UtensilsCrossed, ShoppingBag,
   Waves, Mountain
 } from 'lucide-react';
+import { tripAPI } from '../lib/api';
 
 const PLAN_STEPS = [
   { id: 'flight',   label: '항공권 검색중...',    icon: Plane,       targetPercent: 30, durationMs: 14000 },
@@ -272,8 +273,6 @@ const LocationSearchInput = ({ label, icon, value, onChange, placeholder }) => {
   );
 };
 
-const API_BASE_URL = "http://127.0.0.1:8080/api/trip";
-
 export default function PlannerPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -385,16 +384,8 @@ export default function PlannerPage() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 180000); // 3분 타임아웃
 
-      const response = await fetch(`${API_BASE_URL}/plan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
+      const data = await tripAPI.plan(requestBody, controller.signal);
       clearTimeout(timeoutId);
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || '여행 계획 생성 중 오류가 발생했습니다.');
 
       stopProgressSimulation();
       setProgress(100);

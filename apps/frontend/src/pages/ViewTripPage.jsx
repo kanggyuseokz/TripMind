@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Plane, Calendar, Users, Wallet, MapPin, ShoppingBag, Coffee, Car, Utensils, Home, Loader2, Star, BedDouble, ArrowRight, Trash2, Edit, Clock } from 'lucide-react';
 import ScheduleEditor from '../components/ScheduleEditor';
 import { useToast } from '../components/Toast';
+import { tripAPI, ApiError } from '../lib/api';
+import { normalizeTrip } from '../lib/normalizers';
 
 const getBannerImage = (destination) => {
   if (!destination) return 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=1920&q=80';
@@ -111,108 +113,12 @@ export default function ViewTripPage() {
           return;
         }
 
-        console.log(`[ViewTripPage] Fetching trip ${id}...`);
-        
-        const response = await fetch(`http://127.0.0.1:8080/api/trip/saved/${id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.error('[ViewTripPage] Error response:', errorData);
-          throw new Error(errorData.error || 'Failed to fetch trip');
-        }
-
-        const data = await response.json();
-        console.log('[ViewTripPage] Trip data received:', data);
-        
-        const budget = parseInt(data.budget || data.total_cost || 0, 10);
-        const partySize = parseInt(data.pax || data.party_size || data.head_count || 1, 10);
-        const totalCost = data.budget || data.total_cost || (budget * partySize);
-
-        let durationStr = "";
-        if (data.start_date && data.end_date) {
-          const start = new Date(data.start_date);
-          const end = new Date(data.end_date);
-          const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-          const nights = diffDays;
-          const days = nights + 1;
-          durationStr = `${nights}박 ${days}일`;
-        }
-
-        const rawData = data.raw_data || {};
-        const mcpData = rawData.mcp_fetched_data || {};
-
-        let flights = [];
-        if (mcpData.flight_quote && Object.keys(mcpData.flight_quote).length > 0) {
-          flights = [mcpData.flight_quote];
-        } else if (mcpData.flight_candidates && mcpData.flight_candidates.length > 0) {
-          flights = mcpData.flight_candidates.slice(0, 1);
-        }
-
-        let hotels = [];
-        if (mcpData.hotel_quote && Array.isArray(mcpData.hotel_quote)) {
-          hotels = mcpData.hotel_quote.slice(0, 1);
-        } else if (mcpData.hotel_candidates && mcpData.hotel_candidates.length > 0) {
-          hotels = mcpData.hotel_candidates.slice(0, 1);
-        }
-
-        const weatherByDate = mcpData.weather_by_date || {};
-
-        // ✅ travel_style 추출
-        const rawTravelStyle = data.travel_style ||
-                             rawData.travel_style ||
-                             mcpData?.travel_style ||
-                             'sightseeing';
-        const englishToKorean = {
-          'sightseeing': '관광형', 'relaxation': '휴양형',
-          'activity': '액티비티형', 'foodie': '미식형', 'shopping': '쇼핑형'
-        };
-        const userTravelStyle = englishToKorean[rawTravelStyle] || rawTravelStyle;
-
-        // ✅ cost_breakdown_chart: 백엔드 실데이터 우선 사용
-        const CHART_COLORS = ['#4F46E5', '#7C3AED', '#F59E0B', '#10B981'];
-        const rawCostBreakdown = mcpData.cost_breakdown_chart || [];
-        console.log('[ViewTrip] cost_breakdown_chart:', rawCostBreakdown);
-        const costBreakdownData = rawCostBreakdown.length > 0
-          ? rawCostBreakdown.map((item, i) => ({
-              name: item.category,
-              value: item.percentage,
-              color: CHART_COLORS[i % CHART_COLORS.length]
-            }))
-          : null;
-
-        const tripData = {
-          id: data.id,
-          destination: data.destination || '',
-          trip_summary: data.trip_summary || `${data.destination} 여행`,
-          total_cost: totalCost,
-          per_person_budget: budget,
-          startDate: data.start_date,
-          endDate: data.end_date,
-          durationText: durationStr || "기간 미정",
-          head_count: partySize,
-          activity_distribution: costBreakdownData,
-          flights: flights,
-          hotels: hotels,
-          schedule: data.schedule || [],
-          weatherByDate: weatherByDate,
-          poi_list: mcpData.poi_list || [],
-          travel_style: userTravelStyle,
-          selected_flight_cost: data.selected_flight_cost || 0,
-          selected_hotel_cost: data.selected_hotel_cost || 0,
-          other_costs: data.other_costs || 0,
-          cost_calculation: data.cost_calculation || null
-        };
-
+        const raw = await tripAPI.getOne(token, id);
+        const tripData = normalizeTrip(raw);
         setTripPlan(tripData);
-        
-        // ✅ 원본 스케줄 백업
-        if (data.schedule) {
-          setOriginalSchedule(JSON.parse(JSON.stringify(data.schedule)));
+
+        if (raw.schedule) {
+          setOriginalSchedule(JSON.parse(JSON.stringify(raw.schedule)));
         }
 
         setLoading(false);
@@ -262,21 +168,10 @@ export default function ViewTripPage() {
       setSaving(true);
       
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://127.0.0.1:8080/api/trip/saved/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          schedule: tripPlan.schedule,
-          updated_at: new Date().toISOString()
-        })
+      await tripAPI.update(token, id, {
+        schedule: tripPlan.schedule,
+        updated_at: new Date().toISOString(),
       });
-
-      if (!response.ok) {
-        throw new Error('일정 저장에 실패했습니다.');
-      }
 
       // 성공 - 원본 스케줄 업데이트
       setOriginalSchedule(JSON.parse(JSON.stringify(tripPlan.schedule)));
@@ -294,12 +189,7 @@ export default function ViewTripPage() {
   const handleDelete = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://127.0.0.1:8080/api/trip/saved/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (!response.ok) throw new Error('Failed to delete trip');
+      await tripAPI.delete(token, id);
 
       toast('여행이 삭제되었습니다.', 'success');
       navigate('/saved');

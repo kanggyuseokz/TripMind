@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mail, CheckCircle, Copy, KeyRound } from 'lucide-react';
 
-// 💡 백엔드 API 주소 (포트 8080)
-const API_BASE_URL = "http://127.0.0.1:8080/api/auth";
+import { authAPI } from '../lib/api';
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -27,20 +26,7 @@ export default function ForgotPasswordPage() {
     }
 
     try {
-        // 백엔드에 요청
-        const response = await fetch(`${API_BASE_URL}/forgot-password`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email })
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error || "요청 실패");
-        }
-        
-        // 성공 시 임시 비밀번호 저장
+        const data = await authAPI.forgotPassword(email);
         setTempPassword(data.temp_password);
 
     } catch (err) {

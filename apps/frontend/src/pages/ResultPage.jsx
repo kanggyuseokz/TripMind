@@ -4,6 +4,7 @@ import { useToast } from '../components/Toast';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Plane, Calendar, Users, Wallet, MapPin, ShoppingBag, Coffee, Car, Utensils, Home, ArrowRight, Check, Star, ChevronRight, Clock, BedDouble } from 'lucide-react';
 import { adjustScheduleWithFlightTimes } from '../utils/scheduleUtils';
+import { tripAPI } from '../lib/api';
 
 // [UI 컴포넌트] 진행 단계 표시줄 (Wizard Steps)
 const StepIndicator = ({ currentStep }) => {
@@ -903,23 +904,9 @@ useEffect(() => {
 
                 console.log("💾 [FINAL SAVE] Final trip data with costs:", tripData);
 
-                const response = await fetch('http://127.0.0.1:8080/api/trip/save', {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify(tripData)
-                });
-
-                if (response.ok) {
-                  toast('여행 계획이 저장되었습니다!', 'success');
-                  navigate('/saved');
-                } else {
-                  const errorData = await response.json().catch(() => ({}));
-                  console.error('💾 [PAGE SAVE ERROR]:', errorData);
-                  toast('저장에 실패했습니다: ' + (errorData.error || '알 수 없는 오류'), 'error');
-                }
+                await tripAPI.save(token, tripData);
+                toast('여행 계획이 저장되었습니다!', 'success');
+                navigate('/saved');
               } catch (error) {
                 console.error('💾 [PAGE SAVE ERROR]:', error);
                 toast('저장 중 오류가 발생했습니다.', 'error');

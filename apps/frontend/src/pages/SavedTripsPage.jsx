@@ -3,8 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plane, Calendar, MapPin, ArrowRight, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '../components/Toast';
-
-const API_BASE_URL = "http://127.0.0.1:8080/api/trip";
+import { tripAPI } from '../lib/api';
 
 // 도시별 이미지 매핑 (한국어·영어 키워드 → Unsplash 사진)
 const CITY_IMAGES = [
@@ -127,27 +126,7 @@ export default function SavedTripsPage() {
       setLoading(true);
       setError(''); // 이전 에러 초기화
       
-      const response = await fetch(`${API_BASE_URL}/saved`, {
-        method: 'GET', 
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      // ✅ 401 에러 시 자동 로그아웃
-      if (response.status === 401 || response.status === 422) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        navigate('/login');
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error(`데이터 로딩 실패 (${response.status})`);
-      }
-
-      const data = await response.json();
+      const data = await tripAPI.getAll(token);
       setSavedTrips(Array.isArray(data) ? data : []);
       
     } catch (err) {
@@ -163,28 +142,10 @@ export default function SavedTripsPage() {
     const token = localStorage.getItem('token');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/saved/${tripId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.status === 401) {
-        localStorage.removeItem('token');
-        navigate('/login');
-        return;
-      }
-
-      if (response.ok) {
-        setSavedTrips(prev => prev.filter(trip => trip.id !== tripId));
-        setConfirmDeleteId(null);
-        toast('여행 계획이 삭제되었습니다.', 'success');
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        toast(errorData.message || '삭제에 실패했습니다.', 'error');
-      }
+      await tripAPI.delete(token, tripId);
+      setSavedTrips(prev => prev.filter(trip => trip.id !== tripId));
+      setConfirmDeleteId(null);
+      toast('여행 계획이 삭제되었습니다.', 'success');
     } catch (err) {
       console.error('❌ 삭제 실패:', err);
       toast('오류가 발생했습니다. 다시 시도해주세요.', 'error');

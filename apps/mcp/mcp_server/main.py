@@ -1,4 +1,13 @@
 # mcp/mcp_server/main.py
+import sys
+import io
+
+# Windows CP949 환경에서 emoji 포함 print 문이 UnicodeEncodeError로 실패하는 것을 방지
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 

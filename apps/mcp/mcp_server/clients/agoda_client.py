@@ -418,53 +418,49 @@ class AgodaClient:
             response.raise_for_status()
             
             data = response.json()
-            
+
             # ✅ Retry 로직 (비동기 검색 대응)
             import time
-            retry_info = data.get('retry', {})
-            max_retries = 5
+            retry_info = data.get('retry') or {}
+            max_retries = 10
             retry_count = 0
-            
+
             while retry_info.get('next') and retry_count < max_retries:
                 trips = data.get('trips', [])
                 if trips and trips[0].get('isCompleted') and trips[0].get('bundles'):
                     print(f"[Agoda] ✅ Search completed! Found {len(trips[0].get('bundles', []))} bundles")
                     break
 
-                retry_delay = (retry_info.get('next') or 2000) / 1000
+                retry_delay = min((retry_info.get('next') or 2000) / 1000, 5.0)
                 print(f"[Agoda] ⏳ Search in progress, retrying in {retry_delay}s... ({retry_count + 1}/{max_retries})")
                 time.sleep(retry_delay)
 
                 response = requests.get(url, headers=headers, params=querystring, timeout=60)
                 response.raise_for_status()
                 data = response.json()
-                retry_info = data.get('retry', {})
+                retry_info = data.get('retry') or {}
                 retry_count += 1
-            
+
             # ✅ 디버깅 로그 추가
             print(f"[Agoda] 🔍 API Response keys: {list(data.keys())}")
             print(f"[Agoda] 🔍 Status: {data.get('status')}")
             print(f"[Agoda] 🔍 Retry info: {data.get('retry')}")
-            
-            if 'trips' in data:
-                trips = data.get('trips', [])
-                print(f"[Agoda] 🔍 Number of trips: {len(trips)}")
-                if trips:
-                    trip0 = trips[0]
-                    print(f"[Agoda] 🔍 Trip[0] keys: {list(trip0.keys())}")
-                    print(f"[Agoda] 🔍 Bundles count: {len(trip0.get('bundles', []))}")
-                    print(f"[Agoda] 🔍 QuickSorted count: {len(trip0.get('quickSortedItineraries', []))}")
-                    print(f"[Agoda] 🔍 isCompleted: {trip0.get('isCompleted')}")
-            
+
             trips = data.get('trips', [])
             if not trips:
+                print(f"[Agoda] ❌ No trips in response")
                 return []
 
             trip = trips[0]
-            if not trip.get('isCompleted'):
-                return []
+            print(f"[Agoda] 🔍 Trip[0] keys: {list(trip.keys())}")
+            print(f"[Agoda] 🔍 isCompleted: {trip.get('isCompleted')}")
+            print(f"[Agoda] 🔍 Bundles count: {len(trip.get('bundles', []))}")
 
             bundles = trip.get('bundles', [])
+            # isCompleted가 False여도 bundles가 있으면 사용
+            if not bundles:
+                print(f"[Agoda] ❌ No bundles found (isCompleted={trip.get('isCompleted')})")
+                return []
             
             if not bundles:
                 print(f"[Agoda] No flight bundles found")
@@ -682,7 +678,7 @@ class AgodaClient:
                     print(f"[Agoda] 🔍 Hotel Errors: {response_data.get('errors')}")
                 
                 # 에러 체크
-                if response_data.get("status") == False:
+                if response_data.get("status") is False:
                     print(f"[DEBUG] 🏨 API returned status=false")
                     return []
                 

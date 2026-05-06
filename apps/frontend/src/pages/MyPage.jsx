@@ -3,9 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Settings, LogOut, Plane, ChevronRight, MapPin, Calendar, Mail, Loader2 } from 'lucide-react';
 import ProfileImage from '../components/ProfileImage';
-
-const API_BASE_URL = "http://127.0.0.1:8080/api/trip";
-const AUTH_API_URL = "http://127.0.0.1:8080/api/auth";
+import { authAPI, tripAPI } from '../lib/api';
+import { normalizeUser } from '../lib/normalizers';
 
 const getCityImage = (destination) => {
   if (!destination) return 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80';
@@ -48,29 +47,20 @@ export default function MyPage() {
 
   const fetchUserProfile = async (token) => {
     try {
-      const response = await fetch(`${AUTH_API_URL}/profile`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const profileData = await response.json();
-        setUser(profileData);
-        localStorage.setItem('user', JSON.stringify(profileData));
-      } else if (response.status === 401) {
+      const data = await authAPI.getProfile(token);
+      const user = normalizeUser(data);
+      setUser(user);
+      localStorage.setItem('user', JSON.stringify(user));
+    } catch (error) {
+      if (error.status === 401) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         navigate('/login');
+        return;
       }
-    } catch (error) {
-      console.error("Failed to fetch profile:", error);
-      
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
-        try {
-          setUser(JSON.parse(storedUser));
-        } catch (e) {
-          console.error("User parse error", e);
-        }
+        try { setUser(JSON.parse(storedUser)); } catch {}
       }
     }
   };
@@ -78,18 +68,10 @@ export default function MyPage() {
   const fetchUserTrips = async (token) => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/saved`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const trips = await response.json();
-        if (Array.isArray(trips)) {
-          setTripCount(trips.length);
-          if (trips.length > 0) {
-            setRecentTrip(trips[0]);
-          }
-        }
+      const trips = await tripAPI.getAll(token);
+      if (Array.isArray(trips)) {
+        setTripCount(trips.length);
+        if (trips.length > 0) setRecentTrip(trips[0]);
       }
     } catch (error) {
       console.error("Failed to fetch trips:", error);
