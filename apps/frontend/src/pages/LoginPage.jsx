@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Lock, Mail } from 'lucide-react';
 import { useToast } from '../components/Toast';
+import { authAPI } from '../lib/api';
 
 const GoogleIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -22,8 +23,6 @@ const SocialButton = ({ icon, text, bgColor, textColor, onClick }) => (
     {icon} <span className="ml-3">{text}</span>
   </button>
 );
-
-import { authAPI } from '../lib/api';
 
 const LoginForm = ({ setPage }) => {
   const navigate = useNavigate();
